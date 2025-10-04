@@ -26,12 +26,25 @@ interface User {
     | 'TURISTA';
 }
 
+// Interfaz para los datos del formulario de registro
+export interface RegisterData {
+  username: string;
+  email: string;
+  password: string;
+  password2: string;
+  role: 'TURISTA' | 'PRESTADOR' | 'ARTESANO';
+  origen?: string;
+  paisOrigen?: string;
+}
+
+
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   token: string | null;
   mfaRequired: boolean;
   login: (identifier: string, password: string) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   verifyMfa: (code: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -207,12 +220,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const register = async (data: RegisterData) => {
+    let endpoint = '/auth/registration/'; // Default para Prestador
+    if (data.role === 'TURISTA') {
+      endpoint = '/auth/registration/turista/';
+    } else if (data.role === 'ARTESANO') {
+      endpoint = '/auth/registration/artesano/';
+    }
+
+    interface RegisterPayload {
+      username: string;
+      email: string;
+      password: string;
+      password2: string;
+      origen?: string;
+      pais_origen?: string;
+    }
+
+    const payload: RegisterPayload = {
+      username: data.username,
+      email: data.email,
+      password: data.password,
+      password2: data.password2,
+    };
+
+    if (data.role === 'TURISTA') {
+      payload.origen = data.origen;
+      if (data.origen === 'EXTRANJERO' && data.paisOrigen) {
+        payload.pais_origen = data.paisOrigen;
+      }
+    }
+
+    try {
+      await apiClient.post(endpoint, payload);
+    } catch (err: unknown) {
+      console.error("Registration failed:", err);
+      if (axios.isAxiosError(err) && err.response) {
+        throw err.response.data;
+      }
+      throw new Error('No se pudo conectar al servidor. Inténtalo de nuevo.');
+    }
+  };
+
+
   const value = {
     isAuthenticated: !!token,
     user,
     token,
     mfaRequired,
     login,
+    register,
     verifyMfa,
     logout,
     isLoading,

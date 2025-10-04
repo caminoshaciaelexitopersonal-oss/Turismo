@@ -1,44 +1,66 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import FormField from '@/components/ui/FormField'; // Importar el nuevo componente
+
+// Tipos para los datos de los formularios
+type LoginFormInputs = {
+  identifier: string;
+  password: string;
+};
+
+type MfaFormInputs = {
+  code: string;
+};
 
 export default function LoginPage() {
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
-  const [code, setCode] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { login, mfaRequired, verifyMfa } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+
+  // Hook de formulario para el login principal
+  const {
+    register: registerLogin,
+    handleSubmit: handleLoginSubmit,
+    formState: { errors: loginErrors, isSubmitting: isLoginSubmitting },
+  } = useForm<LoginFormInputs>();
+
+  // Hook de formulario para el código MFA
+  const {
+    register: registerMfa,
+    handleSubmit: handleMfaSubmit,
+    formState: { errors: mfaErrors, isSubmitting: isMfaSubmitting },
+    reset: resetMfaForm,
+  } = useForm<MfaFormInputs>();
 
   // --- Envío del formulario de login ---
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onLoginSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
     setError(null);
-    setIsLoading(true);
     try {
-      await login(identifier, password);
-      // La redirección se maneja dentro del AuthContext
-    } catch (err: any) {
-      setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
-    } finally {
-      setIsLoading(false);
+      await login(data.identifier, data.password);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Error al iniciar sesión. Verifica tus credenciales.');
+      }
     }
   };
 
   // --- Envío del formulario MFA ---
-  const handleMfaSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onMfaSubmit: SubmitHandler<MfaFormInputs> = async (data) => {
     setError(null);
-    setIsLoading(true);
     try {
-      await verifyMfa(code);
-    } catch (err: any) {
-      setError(err.message || 'Código incorrecto. Intenta nuevamente.');
-      setCode('');
-    } finally {
-      setIsLoading(false);
+      await verifyMfa(data.code);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Código incorrecto. Intenta nuevamente.');
+      }
+      resetMfaForm();
     }
   };
 
@@ -53,46 +75,33 @@ export default function LoginPage() {
 
             {error && <div className="p-4 text-red-800 bg-red-100 border border-red-200 rounded-md">{error}</div>}
 
-            <form className="space-y-6" onSubmit={handleLoginSubmit}>
-              <div>
-                <label htmlFor="identifier" className="block text-sm font-medium text-gray-700">
-                  Correo Electrónico o Usuario
-                </label>
-                <input
-                  id="identifier"
-                  name="identifier"
-                  type="text"
-                  autoComplete="username"
-                  required
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  disabled={isLoading}
-                  className="block w-full px-3 py-2 mt-1 placeholder-gray-400 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
-              </div>
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Contraseña
-                </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading}
-                  className="block w-full px-3 py-2 mt-1 placeholder-gray-400 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
-              </div>
+            <form className="space-y-6" onSubmit={handleLoginSubmit(onLoginSubmit)}>
+              <FormField
+                name="identifier"
+                label="Correo Electrónico o Usuario"
+                register={registerLogin}
+                errors={loginErrors}
+                autoComplete="username"
+                disabled={isLoginSubmitting}
+                required
+              />
+              <FormField
+                name="password"
+                label="Contraseña"
+                type="password"
+                register={registerLogin}
+                errors={loginErrors}
+                autoComplete="current-password"
+                disabled={isLoginSubmitting}
+                required
+              />
               <div>
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoginSubmitting}
                   className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
                 >
-                  {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+                  {isLoginSubmitting ? 'Iniciando sesión...' : 'Iniciar Sesión'}
                 </button>
               </div>
             </form>
@@ -116,31 +125,25 @@ export default function LoginPage() {
 
             {error && <div className="p-4 text-red-800 bg-red-100 border border-red-200 rounded-md">{error}</div>}
 
-            <form className="space-y-6" onSubmit={handleMfaSubmit}>
-              <div>
-                <label htmlFor="code" className="block text-sm font-medium text-gray-700">
-                  Código de Verificación
-                </label>
-                <input
-                  id="code"
-                  name="code"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  required
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  disabled={isLoading}
-                  className="block w-full px-3 py-2 mt-1 text-center tracking-[0.5em] placeholder-gray-400 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                />
-              </div>
+            <form className="space-y-6" onSubmit={handleMfaSubmit(onMfaSubmit)}>
+              <FormField
+                name="code"
+                label="Código de Verificación"
+                register={registerMfa}
+                errors={mfaErrors}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                disabled={isMfaSubmitting}
+                required
+                className="block w-full px-3 py-2 mt-1 text-center tracking-[0.5em] placeholder-gray-400 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
               <div>
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isMfaSubmitting}
                   className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
                 >
-                  {isLoading ? 'Verificando...' : 'Verificar Código'}
+                  {isMfaSubmitting ? 'Verificando...' : 'Verificar Código'}
                 </button>
               </div>
             </form>
