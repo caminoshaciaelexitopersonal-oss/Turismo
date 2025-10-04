@@ -31,7 +31,7 @@ export interface RegisterData {
   // Hacemos username opcional aquí para permitir generar uno si no lo proporciona el frontend
   username?: string;
   email: string;
-  password: string;
+  password1: string;
   password2: string;
   role: 'TURISTA' | 'PRESTADOR' | 'ARTESANO';
   origen?: string;
@@ -257,7 +257,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     interface RegisterPayload {
       username: string;
       email: string;
-      password: string;
+      password1: string;
       password2: string;
       origen?: string;
       pais_origen?: string;
@@ -269,7 +269,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const payload: RegisterPayload = {
       username: data.username && data.username.trim().length > 0 ? data.username.trim() : generatedUsername,
       email: data.email,
-      password: data.password,
+      password1: data.password1,
       password2: data.password2,
     };
 
