@@ -1,0 +1,69 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e4]:
+    - heading "Crear una Cuenta" [level=1] [ref=e5]
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]: Correo Electrónico
+        - textbox "Correo Electrónico" [ref=e9]: jakob.pouros@yahoo.com
+      - generic [ref=e10]:
+        - generic [ref=e11]: Nombre de Usuario
+        - textbox "Nombre de Usuario" [ref=e12]: petra89
+      - generic [ref=e13]:
+        - generic [ref=e14]: Contraseña
+        - textbox "Contraseña" [ref=e15]: l0xaa5PQDfyGmQ1
+      - generic [ref=e16]:
+        - generic [ref=e17]: Confirmar Contraseña
+        - textbox "Confirmar Contraseña" [active] [ref=e18]: l0xaa5PQDfyGmQ1
+      - generic [ref=e19]:
+        - generic [ref=e20]: "Quiero registrarme como:"
+        - combobox "Quiero registrarme como:" [ref=e21]:
+          - option "Turista" [selected]
+          - option "Prestador de Servicios"
+          - option "Artesano"
+      - generic [ref=e22]:
+        - generic [ref=e23]: ¿De dónde nos visitas?
+        - combobox "¿De dónde nos visitas?" [ref=e24]:
+          - option "Selecciona tu origen"
+          - option "Soy de Puerto Gaitán"
+          - option "Vengo del Meta"
+          - option "Vengo de otro lugar de Colombia"
+          - option "Soy extranjero" [selected]
+      - button "Crear Cuenta" [ref=e26]
+    - link "¿Ya tienes una cuenta? Inicia sesión" [ref=e28] [cursor=pointer]:
+      - /url: /login
+  - contentinfo [ref=e29]:
+    - generic [ref=e30]:
+      - generic [ref=e31]:
+        - generic [ref=e32]:
+          - heading "Alcaldía de Puerto Gaitán" [level=3] [ref=e33]
+          - generic [ref=e34]:
+            - paragraph [ref=e35]:
+              - generic [ref=e36]: "Dirección:"
+              - text: No disponible
+            - paragraph [ref=e37]:
+              - generic [ref=e38]: "Horario de atención:"
+              - text: No disponible
+        - generic [ref=e39]:
+          - heading "Contacto" [level=3] [ref=e40]
+          - generic [ref=e41]:
+            - paragraph [ref=e42]: "Conmutador: No disponible"
+            - paragraph [ref=e43]: "Móvil: No disponible"
+            - paragraph [ref=e44]: "Línea Gratuita: No disponible"
+            - paragraph [ref=e45]: "Línea Anticorrupción: No disponible"
+        - generic [ref=e46]:
+          - heading "Correos" [level=3] [ref=e47]
+          - generic [ref=e48]:
+            - paragraph [ref=e49]:
+              - link "no-disponible@example.com" [ref=e50] [cursor=pointer]:
+                - /url: mailto:no-disponible@example.com
+            - paragraph [ref=e51]: "Notificaciones Judiciales:"
+            - paragraph [ref=e52]:
+              - link "no-disponible@example.com" [ref=e53] [cursor=pointer]:
+                - /url: mailto:no-disponible@example.com
+      - paragraph [ref=e55]: © 2025 Municipio de Puerto Gaitán. Todos los derechos reservados.
+  - button "Abrir asistente turístico" [ref=e56]:
+    - img "Asistente Turístico Guacamaya" [ref=e57]
+```
