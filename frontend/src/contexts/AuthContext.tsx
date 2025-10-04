@@ -31,7 +31,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   mfaRequired: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
   verifyMfa: (code: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [mfaRequired, setMfaRequired] = useState(false);
-  const [loginCredentials, setLoginCredentials] = useState<{ email: string; password?: string; code?: string } | null>(null);
+  const [loginCredentials, setLoginCredentials] = useState<{ identifier: string; password?: string; code?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [savedItemsMap, setSavedItemsMap] = useState<Map<string, number>>(new Map());
   const router = useRouter();
@@ -123,42 +123,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (identifier: string, password: string) => {
     try {
-      // Enviar "username" para Admin o "email" para Turista según backend
-      const payload: any = { password };
-      if (email.includes('@')) {
-        payload.email = email; // usuarios con email
-      } else {
-        payload.username = email; // usuarios admin sin email
-      }
+      const payload = {
+        username: identifier, // El backend espera 'username', que puede ser email o usuario.
+        password,
+      };
 
       const response = await apiClient.post('/auth/login/', payload);
 
       if (response.data.key) {
         await completeLogin(response.data.key);
       } else {
+        // Si no hay 'key', se asume que se requiere MFA
         setMfaRequired(true);
-        setLoginCredentials({ email, password });
+        setLoginCredentials({ identifier, password });
       }
-    } catch (error: any) {
-      console.error("Login failed:", error.response?.data || error.message);
-      throw new Error('El correo electrónico o la contraseña son incorrectos.');
+    } catch (err: unknown) {
+      console.error("Login failed:", err);
+      if (axios.isAxiosError(err) && err.response) {
+        // Extraer mensaje de error del backend si está disponible
+        const errorMsg = err.response.data?.non_field_errors?.[0] || 'El usuario o la contraseña son incorrectos.';
+        throw new Error(errorMsg);
+      }
+      throw new Error('No se pudo conectar al servidor. Inténtalo de nuevo.');
     }
   };
 
   const verifyMfa = async (code: string) => {
-    if (!loginCredentials) return;
+    if (!loginCredentials?.identifier) {
+      throw new Error('No se encontraron credenciales para la verificación MFA.');
+    }
+
     try {
-      const response = await apiClient.post('/auth/login/', { ...loginCredentials, code });
+      const payload = {
+        username: loginCredentials.identifier,
+        password: loginCredentials.password,
+        code,
+      };
+
+      const response = await apiClient.post('/auth/login/', payload);
+
       if (response.data.key) {
         await completeLogin(response.data.key);
       } else {
-        alert('El código de verificación es incorrecto.');
+        // Si el backend no devuelve una llave, es un error inesperado en este punto
+        throw new Error('Respuesta inesperada del servidor durante la verificación MFA.');
       }
-    } catch (error) {
-      alert('Error al verificar el código. Inténtelo de nuevo.');
-      throw error;
+    } catch (err: unknown) {
+      console.error("MFA verification failed:", err);
+      if (axios.isAxiosError(err) && err.response) {
+        const errorMsg = err.response.data?.non_field_errors?.[0] || 'El código de verificación es incorrecto.';
+        throw new Error(errorMsg);
+      }
+      throw new Error('Error al verificar el código. Inténtelo de nuevo.');
     }
   };
 

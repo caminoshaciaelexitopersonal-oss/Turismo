@@ -5,24 +5,23 @@ import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { login, mfaRequired, verifyMfa } = useAuth();
 
   // --- Envío del formulario de login ---
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setIsLoading(true);
     try {
-      // Detectar si es email o username
-      const identifier = email.includes('@') ? email : email;
-
       await login(identifier, password);
-      // Redirección se maneja dentro del AuthContext
-    } catch (error: any) {
-      alert(error.message || "Error al iniciar sesión. Verifica tus credenciales.");
+      // La redirección se maneja dentro del AuthContext
+    } catch (err: any) {
+      setError(err.message || 'Error al iniciar sesión. Verifica tus credenciales.');
     } finally {
       setIsLoading(false);
     }
@@ -31,11 +30,12 @@ export default function LoginPage() {
   // --- Envío del formulario MFA ---
   const handleMfaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setIsLoading(true);
     try {
       await verifyMfa(code);
-    } catch {
-      alert("Código incorrecto. Intenta nuevamente.");
+    } catch (err: any) {
+      setError(err.message || 'Código incorrecto. Intenta nuevamente.');
       setCode('');
     } finally {
       setIsLoading(false);
@@ -50,19 +50,22 @@ export default function LoginPage() {
             <h2 className="text-2xl font-bold text-center text-gray-900">
               Acceso al Sistema
             </h2>
+
+            {error && <div className="p-4 text-red-800 bg-red-100 border border-red-200 rounded-md">{error}</div>}
+
             <form className="space-y-6" onSubmit={handleLoginSubmit}>
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="identifier" className="block text-sm font-medium text-gray-700">
                   Correo Electrónico o Usuario
                 </label>
                 <input
-                  id="email"
-                  name="email"
+                  id="identifier"
+                  name="identifier"
                   type="text"
                   autoComplete="username"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   disabled={isLoading}
                   className="block w-full px-3 py-2 mt-1 placeholder-gray-400 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 />
@@ -110,6 +113,9 @@ export default function LoginPage() {
             <p className="text-sm text-center text-gray-600">
               Hemos enviado un código a su correo electrónico. Por favor, introdúzcalo a continuación.
             </p>
+
+            {error && <div className="p-4 text-red-800 bg-red-100 border border-red-200 rounded-md">{error}</div>}
+
             <form className="space-y-6" onSubmit={handleMfaSubmit}>
               <div>
                 <label htmlFor="code" className="block text-sm font-medium text-gray-700">
