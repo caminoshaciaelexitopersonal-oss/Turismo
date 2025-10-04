@@ -1,72 +1,71 @@
 from typing import TypedDict, Any, Callable
 from langgraph.graph import StateGraph, END
-from importlib import import_module
+
+# --- ESTADO GENÉRICO DEL TENIENTE ---
 
 class GenericLieutenantState(TypedDict):
-    """
-    La pizarra táctica para el Teniente Genérico.
-    Es universal para cualquier tipo de misión.
-    """
+    """La pizarra táctica para un Teniente Genérico."""
     captain_order: str
     app_context: Any
-    # --- Parámetros de Configuración de la Misión ---
-    sargento_builder_path: str # ej. 'agents.corps.units.platoons.squads.gestion_hoteles_sargento.get_gestion_hoteles_sargento_builder'
-    sargento_name: str       # ej. 'Hotelería'
-    # --- Resultados ---
     final_report: str
     error: str | None
 
-async def delegate_to_sargento(state: GenericLieutenantState) -> GenericLieutenantState:
+# --- CONSTRUCTOR DEL TENIENTE GENÉRICO (PATRÓN FACTORY) ---
+
+def get_generic_lieutenant_graph(
+    sargento_builder: Callable[[], Any],
+    teniente_name: str
+) -> Callable:
     """
-    (NODO DE EJECUCIÓN) Carga dinámicamente el constructor del sargento correcto,
-    lo construye y le delega la misión.
+    Construye y compila un agente Teniente Supervisor genérico.
+
+    Este patrón es una 'fábrica de tenientes'. En lugar de crear un archivo de teniente
+    para cada sargento que solo necesita delegación directa, usamos esta función.
+
+    Args:
+        sargento_builder: La función que construye al sargento (ej. get_gestion_videos_sargento_graph).
+        teniente_name: El nombre de la unidad del teniente para los logs (ej. "Videos").
+
+    Returns:
+        Un agente LangGraph compilado y listo para usar.
     """
-    order = state['captain_order']
-    sargento_builder_path = state['sargento_builder_path']
-    sargento_name = state['sargento_name']
 
-    print(f"--- 🫡 TENIENTE GENÉRICO: Recibida orden para {sargento_name}. Delegando -> '{order}' ---")
+    # --- PUESTO DE MANDO: INSTANCIA DEL SARGENTO PASADO COMO PARÁMETRO ---
+    sargento_agent = sargento_builder()
 
-    try:
-        # Carga dinámica del constructor del sargento
-        path_parts = sargento_builder_path.split('.')
-        module_path = ".".join(path_parts[:-1])
-        func_name = path_parts[-1]
+    # --- NODOS DEL GRAFO SUPERVISOR ---
 
-        module = import_module(module_path)
-        sargento_builder = getattr(module, func_name)
+    async def delegate_to_sargento(state: GenericLieutenantState) -> GenericLieutenantState:
+        """
+        (NODO ÚNICO DE EJECUCIÓN) Delega la misión completa al Sargento especialista proporcionado.
+        """
+        order = state['captain_order']
+        print(f"--- 🫡 TENIENTE GENÉRICO ({teniente_name}): Delegando misión al Sargento -> '{order}' ---")
+        try:
+            result = await sargento_agent.ainvoke({
+                "teniente_order": order,
+                "app_context": state.get('app_context')
+            })
+            report_from_sargento = result.get("final_report", "El Sargento completó la misión sin un reporte detallado.")
+            state["final_report"] = report_from_sargento
+        except Exception as e:
+            error_message = f"Misión fallida bajo el mando del Sargento de {teniente_name}. Razón: {e}"
+            state["error"] = error_message
+        return state
 
-        # Construcción del agente sargento
-        api_client = state.get('app_context')
-        sargento_agent = sargento_builder()(api_client) # Llama al builder para obtener el agente
+    async def compile_report(state: GenericLieutenantState) -> GenericLieutenantState:
+        """(NODO FINAL) Prepara el informe final para el Capitán."""
+        if state.get("error"):
+            state["final_report"] = state["error"]
+        return state
 
-        # Invocación del sargento
-        result = await sargento_agent.ainvoke({
-            "teniente_order": order,
-            "app_context": api_client
-        })
-        state["final_report"] = result.get("final_report", f"El Sargento de {sargento_name} completó la misión sin un reporte detallado.")
-
-    except Exception as e:
-        state["error"] = f"Misión fallida bajo el mando del Sargento de {sargento_name}. Razón: {e}"
-
-    return state
-
-async def compile_report(state: GenericLieutenantState) -> GenericLieutenantState:
-    """Prepara el informe final para el Capitán."""
-    if state.get("error"):
-        state["final_report"] = state["error"]
-    return state
-
-def get_generic_lieutenant_graph():
-    """
-    Construye y compila el agente LangGraph para el Teniente Genérico.
-    Este grafo es reutilizable por cualquier Capitán.
-    """
+    # --- ENSAMBLAJE DEL GRAFO ---
     workflow = StateGraph(GenericLieutenantState)
     workflow.add_node("delegate_mission", delegate_to_sargento)
-    workflow.add_node("compile_report", compile_report)
+    workflow.add_node("compile_final_report", compile_report)
     workflow.set_entry_point("delegate_mission")
-    workflow.add_edge("delegate_mission", "compile_report")
-    workflow.add_edge("compile_report", END)
+    workflow.add_edge("delegate_mission", "compile_final_report")
+    workflow.add_edge("compile_final_report", END)
+
+    print(f"✅ Doctrina aplicada: Teniente Supervisor Genérico para '{teniente_name}' compilado y listo.")
     return workflow.compile()

@@ -1,19 +1,17 @@
 from .sargento_base_graph import SargentoGraphBuilder
-from tools.herramientas_prestador import PrestadorSoldiers
-from typing import Any
+from tools.herramientas_transporte import get_transporte_soldiers
+from tools.herramientas_prestador import get_prestador_soldiers
 
-def get_gestion_transporte_sargento_builder():
+def get_gestion_transporte_sargento_graph():
     """
-    Returns a builder function for the Transporte Sargento agent.
+    Construye y devuelve el agente Sargento de Gestión de Transporte compilado.
+
+    Este sargento comanda un arsenal combinado: las herramientas generales de
+    prestadores y las herramientas específicas para empresas de transporte
+    (como la gestión de flotas o rutas).
     """
-    def build_sargento_agent(api_client: Any):
-        """Builds the sargento's compiled graph."""
-
-        squad = PrestadorSoldiers(api_client).get_all_soldiers()
-
-        builder = SargentoGraphBuilder(squad, squad_name="Gestión de Transporte Turístico")
-        return builder.build_graph()
-
-    print("✅ Doctrina aplicada: Sargento de Gestión de Transporte listo para el despliegue.")
-
-    return build_sargento_agent
+    squad = get_prestador_soldiers() + get_transporte_soldiers()
+    builder = SargentoGraphBuilder(squad, squad_name="Gestión de Transporte")
+    sargento_agent = builder.build_graph()
+    print("✅ Doctrina aplicada: Sargento de Gestión de Transporte compilado y listo.")
+    return sargento_agent

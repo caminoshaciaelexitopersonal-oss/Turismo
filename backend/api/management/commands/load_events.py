@@ -78,7 +78,7 @@ class Command(BaseCommand):
                             'subcategoria_evento': evento_data["subcategoria"],
                             'contenido': evento_data.get("descripcion", "Detalles por confirmar."),
                             'fecha_evento_inicio': fecha_inicio.replace(month=i),
-                            'es_publicado': True,
+                            'estado': Publicacion.Status.PUBLICADO,
                             'autor': admin_user,
                         }
                     )
@@ -94,7 +94,7 @@ class Command(BaseCommand):
                         'subcategoria_evento': evento_data["subcategoria"],
                         'contenido': 'Detalles del evento por confirmar.',
                         'fecha_evento_inicio': fecha_inicio,
-                        'es_publicado': True,
+                        'estado': Publicacion.Status.PUBLICADO,
                         'autor': admin_user,
                     }
                 )

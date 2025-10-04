@@ -1,88 +1,124 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
-from django.conf import settings
-from .models import CustomUser, PrestadorServicio
+from django.contrib.contenttypes.models import ContentType
+from .models import (
+    Resena,
+    Verificacion,
+    AsistenciaCapacitacion,
+    PrestadorServicio,
+    Artesano,
+    ScoringRule,
+    RespuestaItemVerificacion
+)
 
-# URL base del frontend (debería estar en settings, pero se simplifica aquí)
-FRONTEND_BASE_URL = "http://localhost:3000"
+@receiver(post_save, sender=Resena)
+def actualizar_puntuacion_por_resena(sender, instance, created, **kwargs):
+    """
+    Actualiza la puntuación de un Prestador o Artesano cuando se crea
+    o actualiza una reseña aprobada.
+    """
+    if not instance.aprobada:
+        return
 
-def send_notification_email(subject, template_name, context, to_emails):
-    """
-    Función de ayuda para renderizar y enviar correos HTML con alternativa de texto.
-    """
+    content_object = instance.content_object
+    if not isinstance(content_object, (PrestadorServicio, Artesano)):
+        return
+
     try:
-        # Renderiza el contenido HTML y de texto plano
-        html_content = render_to_string(template_name, context)
-        # Se puede crear una versión de texto plano o dejar que el cliente de correo lo genere
-        text_content = "Este es un correo importante del sistema de turismo de Puerto Gaitán."
+        rules = ScoringRule.load()
+        puntos_por_estrella = rules.puntos_por_estrella_reseña
+    except ScoringRule.DoesNotExist:
+        puntos_por_estrella = 2 # Valor por defecto si no hay reglas
 
-        # Crea el correo
-        email = EmailMultiAlternatives(
-            subject,
-            text_content,
-            settings.DEFAULT_FROM_EMAIL,
-            to_emails
-        )
-        email.attach_alternative(html_content, "text/html")
-        email.send(fail_silently=False)
-        print(f"Correo '{subject}' enviado exitosamente a: {', '.join(to_emails)}")
-    except Exception as e:
-        print(f"ERROR al enviar correo '{subject}': {e}")
+    # Recalcular el total de puntos de reseñas para el objeto
+    total_puntos_resenas = 0
+    content_type = ContentType.objects.get_for_model(content_object)
+    resenas_aprobadas = Resena.objects.filter(
+        content_type=content_type,
+        object_id=content_object.id,
+        aprobada=True
+    )
+
+    for resena in resenas_aprobadas:
+        total_puntos_resenas += resena.calificacion * puntos_por_estrella
+
+    content_object.puntuacion_reseñas = total_puntos_resenas
+    content_object.recalcular_puntuacion_total()
 
 
-@receiver(post_save, sender=PrestadorServicio)
-def prestador_notifications_handler(sender, instance, created, update_fields=None, **kwargs):
+@receiver(post_save, sender=Verificacion)
+def actualizar_puntuacion_por_verificacion(sender, instance, created, **kwargs):
     """
-    Gestiona las notificaciones por correo para los prestadores de servicios.
-    - Notifica a los admins cuando se crea un nuevo prestador.
-    - Notifica al prestador cuando su perfil es aprobado.
+    Actualiza la puntuación de un Prestador de Servicio cuando se crea
+    o actualiza una verificación.
     """
-    # 1. Notificación a los administradores sobre un nuevo registro
-    if created:
-        admin_users = CustomUser.objects.filter(
-            role__in=[CustomUser.Role.ADMIN, CustomUser.Role.FUNCIONARIO_DIRECTIVO, CustomUser.Role.FUNCIONARIO_PROFESIONAL],
-            is_active=True
-        )
-        admin_emails = [user.email for user in admin_users if user.email]
+    prestador = instance.prestador
 
-        if not admin_emails:
-            print("Señal de notificación: No se encontraron administradores/funcionarios para notificar.")
-            return
+    # Primero, se calcula el puntaje de esta verificación específica
+    puntaje_calculado = 0
+    respuestas = RespuestaItemVerificacion.objects.filter(verificacion=instance, cumple=True)
+    for respuesta in respuestas:
+        puntaje_calculado += respuesta.item_original.puntaje
 
-        subject = f"Nuevo Prestador Registrado: {instance.nombre_negocio}"
-        context = {
-            "nombre_negocio": instance.nombre_negocio,
-            "email_contacto": instance.usuario.email,
-            "fecha_registro": instance.fecha_creacion.strftime('%d/%m/%Y'),
-            "admin_url": f"{FRONTEND_BASE_URL}/dashboard?tab=prestadores"
-        }
-        send_notification_email(
-            subject,
-            "mail/admin_new_prestador_notification.html",
-            context,
-            admin_emails
-        )
+    # Se actualiza el puntaje_obtenido de la instancia de Verificacion
+    # Se usa update para evitar recursión de la señal post_save
+    Verificacion.objects.filter(pk=instance.pk).update(puntaje_obtenido=puntaje_calculado)
 
-    # 2. Notificación al prestador cuando su perfil es aprobado
+    # Ahora, se recalcula la puntuación total del prestador
+    total_puntos_verificacion = 0
+    verificaciones = Verificacion.objects.filter(prestador=prestador)
+
+    for v in verificaciones:
+        total_puntos_verificacion += v.puntaje_obtenido
+
+    prestador.puntuacion_verificacion = total_puntos_verificacion
+    prestador.recalcular_puntuacion_total()
+
+
+@receiver(post_save, sender=AsistenciaCapacitacion)
+def actualizar_puntuacion_por_capacitacion(sender, instance, created, **kwargs):
+    """
+    Actualiza la puntuación de un Prestador o Artesano cuando se registra
+    la asistencia a una capacitación.
+    """
+    usuario = instance.usuario
+
+    if hasattr(usuario, 'perfil_prestador'):
+        entidad = usuario.perfil_prestador
+    elif hasattr(usuario, 'perfil_artesano'):
+        entidad = usuario.perfil_artesano
     else:
-        # Se comprueba si el campo 'aprobado' está en los campos actualizados
-        if update_fields and 'aprobado' in update_fields and instance.aprobado:
-            # Asegurarse de que el prestador tenga un email
-            if not instance.usuario.email:
-                print(f"Señal de notificación: El prestador {instance.nombre_negocio} no tiene email para notificar aprobación.")
-                return
+        return # El usuario no es ni prestador ni artesano
 
-            subject = "¡Tu negocio ha sido aprobado en el Portal de Turismo!"
-            context = {
-                "nombre_usuario": instance.usuario.first_name or instance.usuario.username,
-                "nombre_negocio": instance.nombre_negocio,
-                "portal_url": f"{FRONTEND_BASE_URL}/(public)/prestadores/{instance.id}"
-            }
-            send_notification_email(
-                subject,
-                "mail/prestador_approval_notification.html",
-                context,
-                [instance.usuario.email]
-            )
+    try:
+        rules = ScoringRule.load()
+        puntos_base = rules.puntos_asistencia_capacitacion
+    except ScoringRule.DoesNotExist:
+        puntos_base = 10 # Valor por defecto
+
+    # Recalcular el total de puntos por capacitación
+    total_puntos_capacitacion = 0
+    asistencias = AsistenciaCapacitacion.objects.filter(usuario=usuario)
+
+    for asistencia in asistencias:
+        # Usar los puntos definidos en la capacitación si existen, si no, los de las reglas
+        puntos_otorgados = asistencia.capacitacion.puntos_asistencia if asistencia.capacitacion.puntos_asistencia > 0 else puntos_base
+        total_puntos_capacitacion += puntos_otorgados
+
+    entidad.puntuacion_capacitacion = total_puntos_capacitacion
+    entidad.recalcular_puntuacion_total()
+
+# --- Señales post_delete para mantener la consistencia ---
+
+@receiver(post_delete, sender=AsistenciaCapacitacion)
+def recalcular_puntuacion_al_borrar_asistencia(sender, instance, **kwargs):
+    # Llama a la misma lógica de actualización para recalcular con un elemento menos
+    actualizar_puntuacion_por_capacitacion(sender, instance, created=False, **kwargs)
+
+@receiver(post_delete, sender=Verificacion)
+def recalcular_puntuacion_al_borrar_verificacion(sender, instance, **kwargs):
+    actualizar_puntuacion_por_verificacion(sender, instance, created=False, **kwargs)
+
+@receiver(post_delete, sender=Resena)
+def recalcular_puntuacion_al_borrar_resena(sender, instance, **kwargs):
+    actualizar_puntuacion_por_resena(sender, instance, created=False, **kwargs)

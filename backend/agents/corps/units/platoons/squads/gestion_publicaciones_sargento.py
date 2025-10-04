@@ -1,19 +1,16 @@
 from .sargento_base_graph import SargentoGraphBuilder
-from tools.herramientas_publicaciones import PublicacionesSoldiers
-from typing import Any
+from tools.herramientas_publicaciones import get_publicaciones_soldiers
 
-def get_gestion_publicaciones_sargento_builder():
+def get_gestion_publicaciones_sargento_graph():
     """
-    Returns a builder function for the Publicaciones Sargento agent.
+    Construye y devuelve el agente Sargento de Gestión de Publicaciones compilado.
+
+    Este sargento comanda a la escuadra responsable de todo el ciclo de vida
+    del contenido (Noticias, Eventos, Blogs), incluyendo su creación, edición,
+    el flujo de aprobación de varios pasos y su publicación final.
     """
-    def build_sargento_agent(api_client: Any):
-        """Builds the sargento's compiled graph."""
-
-        squad = PublicacionesSoldiers(api_client).get_all_soldiers()
-
-        builder = SargentoGraphBuilder(squad, squad_name="Gestión de Publicaciones")
-        return builder.build_graph()
-
-    print("✅ Doctrina aplicada: Sargento de Gestión de Publicaciones listo para el despliegue.")
-
-    return build_sargento_agent
+    squad = get_publicaciones_soldiers()
+    builder = SargentoGraphBuilder(squad, squad_name="Gestión de Publicaciones")
+    sargento_agent = builder.build_graph()
+    print("✅ Doctrina aplicada: Sargento de Gestión de Publicaciones compilado y listo.")
+    return sargento_agent

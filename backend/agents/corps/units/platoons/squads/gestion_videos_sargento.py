@@ -1,19 +1,16 @@
 from .sargento_base_graph import SargentoGraphBuilder
-from tools.herramientas_videos import VideosSoldiers
-from typing import Any
+from tools.herramientas_videos import get_videos_soldiers
 
-def get_gestion_videos_sargento_builder():
+def get_gestion_videos_sargento_graph():
     """
-    Returns a builder function for the Videos Sargento agent.
+    Construye y devuelve el agente Sargento de Gestión de Videos compilado.
+
+    Este sargento comanda la escuadra de herramientas para gestionar la
+    sección de videos de la plataforma, permitiendo agregar, actualizar y
+    publicar contenido de YouTube.
     """
-    def build_sargento_agent(api_client: Any):
-        """Builds the sargento's compiled graph."""
-
-        squad = VideosSoldiers(api_client).get_all_soldiers()
-
-        builder = SargentoGraphBuilder(squad, squad_name="Gestión de Videos")
-        return builder.build_graph()
-
-    print("✅ Doctrina aplicada: Sargento de Gestión de Videos listo para el despliegue.")
-
-    return build_sargento_agent
+    squad = get_videos_soldiers()
+    builder = SargentoGraphBuilder(squad, squad_name="Gestión de Videos")
+    sargento_agent = builder.build_graph()
+    print("✅ Doctrina aplicada: Sargento de Gestión de Videos compilado y listo.")
+    return sargento_agent

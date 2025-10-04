@@ -7,7 +7,7 @@ import Link from 'next/link';
 import SaveButton from '@/components/SaveButton';
 import Image from 'next/image';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 interface PublicacionDetalle {
   id: number;

@@ -1,4 +1,4 @@
-"use client";
+ 'use client';
 
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -55,6 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     headers: { "Content-Type": "application/json" },
   });
 
+  // Interceptor para adjuntar token
   apiClient.interceptors.request.use(
     (config) => {
       if (typeof window !== "undefined") {
@@ -92,7 +93,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error fetching user data, logging out:", error);
       logout();
     }
-  }, [logout, apiClient]);
+  }, [logout]);
 
   useEffect(() => {
     const storedToken = localStorage.getItem('authToken');
@@ -124,10 +125,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      // ***** CORRECCIÓN FINAL Y DEFINITIVA *****
-      // El endpoint correcto es /auth/login/ y con autenticación por email,
-      // dj-rest-auth espera 'email' y 'password'.
-      const response = await apiClient.post('/auth/login/', { email, password });
+      // Enviar "username" para Admin o "email" para Turista según backend
+      const payload: any = { password };
+      if (email.includes('@')) {
+        payload.email = email; // usuarios con email
+      } else {
+        payload.username = email; // usuarios admin sin email
+      }
+
+      const response = await apiClient.post('/auth/login/', payload);
 
       if (response.data.key) {
         await completeLogin(response.data.key);
@@ -135,9 +141,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setMfaRequired(true);
         setLoginCredentials({ email, password });
       }
-    } catch (error) {
-      console.error("Login failed:", error);
-      throw new Error('Correo electrónico o contraseña incorrectos.');
+    } catch (error: any) {
+      console.error("Login failed:", error.response?.data || error.message);
+      throw new Error('El correo electrónico o la contraseña son incorrectos.');
     }
   };
 
@@ -176,7 +182,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         await apiClient.post('/mi-viaje/', { content_type: contentType, object_id: objectId });
       }
-      await fetchUserData(token!);
+      await fetchUserData();
     } catch(error) {
       console.error("Error al guardar/eliminar el elemento:", error);
       alert("Hubo un error al procesar tu solicitud.");

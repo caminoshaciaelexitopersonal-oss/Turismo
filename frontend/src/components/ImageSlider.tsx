@@ -20,7 +20,7 @@ interface ImageSliderProps {
 const ImageSlider: React.FC<ImageSliderProps> = ({ images, className }) => {
   const settings = {
     dots: true,
-    infinite: images.length > 1, // El bucle infinito solo tiene sentido si hay más de una imagen
+    infinite: images.length > 1,
     speed: 500,
     fade: true,
     slidesToShow: 1,
@@ -28,8 +28,8 @@ const ImageSlider: React.FC<ImageSliderProps> = ({ images, className }) => {
     autoplay: true,
     autoplaySpeed: 4000,
     cssEase: 'linear',
-    arrows: false, // Ocultamos las flechas para un look más limpio
-    dotsClass: "slick-dots slick-thumb", // Clase para personalizar los puntos
+    arrows: false,
+    dotsClass: "slick-dots slick-thumb",
   };
 
   const fallbackImage = "/images/placeholder.png";
@@ -40,8 +40,8 @@ const ImageSlider: React.FC<ImageSliderProps> = ({ images, className }) => {
         <Image
             src={fallbackImage}
             alt="No hay imágenes disponibles"
-            layout="fill"
-            objectFit="cover"
+            fill={true}
+            style={{ objectFit: 'cover' }}
             className="opacity-50"
         />
         <div className="absolute inset-0 flex justify-center items-center">
@@ -59,8 +59,8 @@ const ImageSlider: React.FC<ImageSliderProps> = ({ images, className }) => {
             <Image
               src={img.imagen}
               alt={img.alt_text || "Imagen de la galería"}
-              layout="fill"
-              objectFit="cover"
+              fill={true}
+              style={{ objectFit: 'cover' }}
             />
           </div>
         ))}

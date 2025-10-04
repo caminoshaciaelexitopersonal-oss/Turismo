@@ -1,21 +1,18 @@
 from .sargento_base_graph import SargentoGraphBuilder
-from tools.herramientas_prestador import PrestadorSoldiers
-from typing import Any
+from tools.herramientas_hoteles import get_hoteles_soldiers
+from tools.herramientas_prestador import get_prestador_soldiers
 
-def get_gestion_hoteles_sargento_builder():
+def get_gestion_hoteles_sargento_graph():
     """
-    Returns a builder function for the Hoteles Sargento agent.
-    This sargento specializes in hotel-related operations.
+    Construye y devuelve el agente Sargento de Gestión de Hoteles compilado.
+
+    Este sargento es un especialista que comanda un arsenal combinado: las
+    herramientas generales de prestadores y las herramientas específicas para
+    hoteles (como la gestión de la ocupación).
     """
-    def build_sargento_agent(api_client: Any):
-        """Builds the sargento's compiled graph."""
-
-        # The Hotel sargento commands the same squad as the general Prestador sargento for now.
-        squad = PrestadorSoldiers(api_client).get_all_soldiers()
-
-        builder = SargentoGraphBuilder(squad, squad_name="Gestión de Hotelería")
-        return builder.build_graph()
-
-    print("✅ Doctrina aplicada: Sargento de Gestión de Hotelería listo para el despliegue.")
-
-    return build_sargento_agent
+    # El arsenal de este sargento es la combinación de dos escuadras
+    squad = get_prestador_soldiers() + get_hoteles_soldiers()
+    builder = SargentoGraphBuilder(squad, squad_name="Gestión de Hoteles")
+    sargento_agent = builder.build_graph()
+    print("✅ Doctrina aplicada: Sargento de Gestión de Hoteles compilado y listo.")
+    return sargento_agent

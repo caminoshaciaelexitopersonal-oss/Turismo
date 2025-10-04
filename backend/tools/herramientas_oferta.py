@@ -1,28 +1,39 @@
 from langchain_core.tools import tool
-from typing import Any, List, Dict
+from typing import List, Dict
+from api.models import PrestadorServicio
 
-class OfertaSoldiers:
+
+@tool
+def gestionar_oferta_prestador(prestador_id: int, detalles_oferta: str) -> Dict:
     """
-    El arsenal de herramientas de ejecución (la escuadra de Soldados)
-    para las operaciones de Oferta Turística.
+    (SOLDADO DE OFERTAS) Crea o actualiza la sección de 'promociones_ofertas'
+    para un prestador de servicio específico.
+    'prestador_id' es el ID del prestador.
+    'detalles_oferta' es el texto que describe la promoción, menú o paquete.
     """
-    def __init__(self, api_client: Any):
-        self.api = api_client
+    print(f"--- 💥 SOLDADO (Oferta Turística): ¡ACCIÓN! Gestionando oferta para el prestador {prestador_id}. ---")
+    try:
+        prestador = PrestadorServicio.objects.get(id=prestador_id)
+        prestador.promociones_ofertas = detalles_oferta
+        prestador.save(update_fields=['promociones_ofertas'])
+        return {
+            "status": "success",
+            "message": f"La oferta para el prestador '{prestador.nombre_negocio}' (ID: {prestador_id}) ha sido actualizada."
+        }
+    except PrestadorServicio.DoesNotExist:
+        return {
+            "status": "error",
+            "message": f"No se encontró un prestador con el ID {prestador_id}."
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Ocurrió un error inesperado: {str(e)}"
+        }
 
-    @tool
-    def gestionar_oferta_prestador(self, prestador_id: int, detalles_oferta: str) -> Dict:
-        """
-        (SOLDADO DE OFERTAS) Crea o actualiza la sección de 'promociones_ofertas'
-        para un prestador de servicio específico.
-        'prestador_id' es el ID del prestador.
-        'detalles_oferta' es el texto que describe la promoción, menú o paquete.
-        """
-        print(f"--- 💥 SOLDADO (Oferta Turística): ¡ACCIÓN! Gestionando oferta para el prestador {prestador_id}. ---")
-        # Lógica de API simulada para actualizar el campo 'promociones_ofertas'
-        return {"status": "success", "message": f"La oferta para el prestador {prestador_id} ha sido actualizada."}
 
-    def get_all_soldiers(self) -> List:
-        """ Recluta y devuelve la Escuadra de Oferta Turística completa. """
-        return [
-            self.gestionar_oferta_prestador,
-        ]
+def get_oferta_soldiers() -> List:
+    """ Recluta y devuelve la Escuadra de Oferta Turística completa. """
+    return [
+        gestionar_oferta_prestador,
+    ]

@@ -1,16 +1,25 @@
-from typing import TypedDict, List
-from pydantic import BaseModel, Field
+from typing import TypedDict, List, Any
+from langchain_core.pydantic_v1 import BaseModel, Field
 from langgraph.graph import StateGraph, END
-from importlib import import_module
 from langchain_openai import ChatOpenAI
-from functools import partial
+
+# --- Importamos a los comandantes de campo: los Capitanes ---
+from .units.admin_captain import get_admin_captain_graph
+from .units.funcionario_captain import get_funcionario_captain_graph
+from .units.prestadores_captain import get_prestadores_captain_graph
+from .units.artesanos_captain import get_artesanos_captain_graph
+from .units.turista_captain import get_turista_captain_graph
+from .units.publicaciones_captain import get_publicaciones_captain_graph
+from .units.atractivos_captain import get_atractivos_captain_graph
+from .units.oferta_captain import get_oferta_captain_graph
+from .units.videos_captain import get_videos_captain_graph
 
 # --- DEFINICIÓN DEL ESTADO Y EL PLAN TÁCTICO DEL CORONEL ---
 
 class CaptainTask(BaseModel):
     """Define una misión táctica clara para ser asignada a un Capitán."""
     task_description: str = Field(description="La descripción específica y detallada de la misión para el Capitán.")
-    responsible_captain: str = Field(description="El Capitán especialista (ej: Prestadores, Atractivos, Admin, etc.).")
+    responsible_captain: str = Field(description="El Capitán especialista. Debe ser uno de: 'Admin', 'Funcionario', 'Prestadores', 'Artesanos', 'Turista', 'Publicaciones', 'Atractivos', 'Oferta', 'Videos'.")
 
 class TacticalPlan(BaseModel):
     """El plan táctico completo generado por el Coronel."""
@@ -19,66 +28,109 @@ class TacticalPlan(BaseModel):
 class TurismoColonelState(TypedDict):
     """La pizarra táctica del Coronel de Turismo."""
     general_order: str
+    app_context: Any
     tactical_plan: TacticalPlan | None
     task_queue: List[CaptainTask]
     completed_missions: list
     final_report: str
     error: str | None
 
+# --- PUESTO DE MANDO: INSTANCIACIÓN DE CAPITANES ---
+# Se instancian una sola vez para eficiencia
+capitanes = {
+    "Admin": get_admin_captain_graph(),
+    "Funcionario": get_funcionario_captain_graph(),
+    "Prestadores": get_prestadores_captain_graph(),
+    "Artesanos": get_artesanos_captain_graph(),
+    "Turista": get_turista_captain_graph(),
+    "Publicaciones": get_publicaciones_captain_graph(),
+    "Atractivos": get_atractivos_captain_graph(),
+    "Oferta": get_oferta_captain_graph(),
+    "Videos": get_videos_captain_graph(),
+}
+
 # --- NODOS DEL GRAFO DE MANDO DEL CORONEL ---
 
 async def create_tactical_plan(state: TurismoColonelState) -> TurismoColonelState:
-    """
-    (NODO 1: PLANIFICADOR TÁCTICO)
-    Si hay un LLM disponible, lo usamos. De lo contrario, devolvemos un plan simulado.
-    """
-    print(f"--- 🧠 CORONEL DE TURISMO: Creando Plan Táctico para '{state['general_order']}' ---")
+    """(NODO 1: PLANIFICADOR TÁCTICO) Analiza la orden estratégica y la descompone en un plan de acción."""
+    print(f"--- 🧠 CORONEL DE TURISMO: Creando Plan Táctico... ---")
+    llm = ChatOpenAI(model="gpt-4o", temperature=0, model_kwargs={"response_format": {"type": "json_object"}})
+    structured_llm = llm.with_structured_output(TacticalPlan)
 
+    # El prompt ahora es una guía clara para el LLM sobre sus capacidades
+    base_prompt = f"""
+Eres el Coronel de la División de Turismo. Tu General (el usuario) te ha dado una orden estratégica.
+Tu deber es analizar esta orden y descomponerla en un plan táctico, asignando cada misión al Capitán especialista más adecuado.
+
+**Capitanes bajo tu mando y sus especialidades:**
+- **'Admin'**: Capitán de administración general. Asigna misiones de configuración del sitio, gestión de usuarios y moderación de alto nivel.
+- **'Funcionario'**: Capitán del cuerpo de funcionarios. Asigna misiones de gestión de contenido institucional, creación de plantillas de verificación y ejecución de verificaciones de campo.
+- **'Prestadores'**: Capitán para el rol de Prestador. Asigna misiones para que los prestadores gestionen sus propios perfiles (actualizar datos, fotos, etc.).
+- **'Artesanos'**: Capitán para el rol de Artesano. Asigna misiones para que los artesanos gestionen sus perfiles.
+- **'Turista'**: Capitán de asistencia al turista. Asigna misiones de búsqueda de información, planificación de viajes y envío de reseñas.
+- **'Publicaciones'**: Capitán de contenido. Asigna misiones para crear o gestionar noticias, blogs y eventos.
+- **'Atractivos'**: Capitán de inventario. Asigna misiones para crear o gestionar los atractivos turísticos.
+- **'Oferta'**: Capitán de oferta comercial. Asigna misiones para crear y gestionar rutas turísticas.
+- **'Videos'**: Capitán de contenido audiovisual. Asigna misiones para gestionar la sección de videos.
+"""
+
+    # Doctrina especial para usuarios no registrados (invitados)
+    guest_protocol = ""
+    if state.get("app_context", {}).get("is_guest", False):
+        guest_protocol = """
+
+**PROTOCOLO PARA VISITANTES (NO REGISTRADOS):**
+Tu misión tiene tres fases, en este orden exacto:
+1.  **Identificar Origen:** Tu primera tarea es conversar con el usuario para identificar su origen. Debes preguntarle amablemente si es de Puerto Gaitán (Local), de otro municipio del Meta (Regional), de otra parte de Colombia (Nacional) o de otro país (Extranjero). Usa al Capitán Turista para esta interacción.
+2.  **Responder y Guiar:** Una vez que tengas su origen, responde a su pregunta principal usando al Capitán Turista para buscar información.
+3.  **Invitar al Registro:** Finalmente, invítale cordialmente a registrarse en la plataforma para obtener una experiencia completa y personalizada, mencionando que podrá guardar sus lugares favoritos y recibir recomendaciones.
+"""
+
+    prompt = f"""
+{base_prompt}
+{guest_protocol}
+
+Analiza la siguiente orden y genera el plan táctico en formato JSON. Sé conciso y directo en las descripciones de las tareas.
+**Orden: "{state['general_order']}"**
+"""
     try:
-        structured_llm = ChatOpenAI(model="gpt-4o", temperature=0).with_structured_output(TacticalPlan)
-        plan = await structured_llm.ainvoke(
-            f"""
-            Eres el Coronel de Turismo. Tu misión es asignar la orden "{state['general_order']}" 
-            al Capitán especialista más adecuado.
-            Responde en JSON válido con el plan táctico.
-            """
-        )
+        plan = await structured_llm.ainvoke(prompt)
+        state.update({
+            "tactical_plan": plan,
+            "task_queue": plan.plan.copy(),
+            "completed_missions": [],
+            "error": None
+        })
     except Exception as e:
-        print(f"[WARN] LLM no disponible. Usando plan simulado. Error: {e}")
-        plan = TacticalPlan(plan=[
-            CaptainTask(task_description=state["general_order"], responsible_captain="Prestadores")
-        ])
-
-    state.update({
-        "tactical_plan": plan,
-        "task_queue": plan.plan.copy(),
-        "completed_missions": [],
-        "error": None
-    })
+        state["error"] = f"Error crítico al planificar: {e}"
     return state
 
 def route_to_captain(state: TurismoColonelState):
     """(NODO 2: ENRUTADOR DE MANDO) Selecciona el Capitán según la próxima misión."""
-    if state.get("error") or not state["task_queue"]:
+    if state.get("error") or not state.get("task_queue"):
         return "compile_report"
-    return f"{state['task_queue'][0].responsible_captain.lower()}_captain"
 
-async def generic_captain_node(
-    state: TurismoColonelState,
-    captain_module_name: str,
-    captain_graph_func: str,
-    captain_name: str
-) -> TurismoColonelState:
+    next_mission = state["task_queue"][0]
+    captain_unit = next_mission.responsible_captain
+
+    if captain_unit in capitanes:
+        return captain_unit
+    else:
+        state["error"] = f"Error de planificación: Capitán '{captain_unit}' desconocido."
+        state["task_queue"].pop(0)
+        return "route_to_captain"
+
+async def delegate_mission(state: TurismoColonelState, captain_name: str) -> TurismoColonelState:
     """(NODO DE DELEGACIÓN) Invoca dinámicamente el sub-grafo del Capitán adecuado."""
     mission = state["task_queue"].pop(0)
     print(f"--- 🔽 CORONEL: Delegando a CAP. {captain_name.upper()} -> '{mission.task_description}' ---")
     try:
-        # La ruta debe ser relativa al directorio 'backend', que es la raíz del proyecto Django.
-        module_path = f"agents.corps.units.{captain_module_name}"
-        module = import_module(module_path)
-        get_captain_graph = getattr(module, captain_graph_func)
-        captain_agent = get_captain_graph()
-        result = await captain_agent.ainvoke({"coronel_order": mission.task_description})
+        captain_agent = capitanes[captain_name]
+        # CORRECCIÓN VITAL: Pasar el app_context al capitán.
+        result = await captain_agent.ainvoke({
+            "coronel_order": mission.task_description,
+            "app_context": state.get("app_context")
+        })
         state["completed_missions"].append({
             "captain": captain_name,
             "mission": mission.task_description,
@@ -90,8 +142,9 @@ async def generic_captain_node(
 
 async def compile_final_report(state: TurismoColonelState) -> TurismoColonelState:
     """(NODO FINAL) Compila los reportes de todos los Capitanes."""
+    print("--- 📄 CORONEL DE TURISMO: Compilando Informe de División para el General... ---")
     if state.get("error"):
-        state["final_report"] = f"Misión fallida. Razón: {state['error']}"
+        state["final_report"] = f"Misión de la División fallida. Razón: {state['error']}"
     else:
         report_body = "\n".join([
             f"- Reporte del Capitán de {m['captain']}:\n  Misión: '{m['mission']}'\n  Resultado: {m['report']}"
@@ -107,40 +160,22 @@ def get_turismo_coronel_graph():
     workflow = StateGraph(TurismoColonelState)
 
     workflow.add_node("planner", create_tactical_plan)
-    workflow.add_node("router", lambda s: s)
+    workflow.add_node("router", lambda s: s) # Nodo 'passthrough' para el enrutador
 
-    # Definimos Capitanes disponibles
-    captain_nodes_map = {
-        "prestadores_captain": ("prestadores_captain", "get_prestadores_captain_graph", "Prestadores"),
-        "atractivos_captain": ("atractivos_captain", "get_atractivos_captain_graph", "Atractivos"),
-        "publicaciones_captain": ("publicaciones_captain", "get_publicaciones_captain_graph", "Publicaciones"),
-        "admin_captain": ("admin_captain", "get_admin_captain_graph", "Admin"),
-        "turista_captain": ("turista_captain", "get_turista_captain_graph", "Turista"),
-        "funcionario_captain": ("funcionario_captain", "get_funcionario_captain_graph", "Funcionario"),
-        "videos_captain": ("videos_captain", "get_videos_captain_graph", "Videos"),
-        "artesanos_captain": ("artesanos_captain", "get_artesanos_captain_graph", "Artesanos"),
-        "oferta_captain": ("oferta_captain", "get_oferta_captain_graph", "Oferta"),
-    }
-
-    for node_name, (module, func, display) in captain_nodes_map.items():
-        workflow.add_node(
-            node_name,
-            # Usamos partial para pre-configurar la función asíncrona con sus argumentos
-            partial(generic_captain_node, captain_module_name=module, captain_graph_func=func, captain_name=display)
-        )
+    for name in capitanes.keys():
+        workflow.add_node(name, lambda state, c_name=name: delegate_mission(state, c_name))
+        workflow.add_edge(name, "router")
 
     workflow.add_node("compiler", compile_final_report)
 
-    # Configuración de flujo
     workflow.set_entry_point("planner")
     workflow.add_edge("planner", "router")
 
-    conditional_map = {name: name for name in captain_nodes_map.keys()}
+    conditional_map = {name: name for name in capitanes.keys()}
     conditional_map["compile_report"] = "compiler"
     workflow.add_conditional_edges("router", route_to_captain, conditional_map)
 
-    for node_name in captain_nodes_map.keys():
-        workflow.add_edge(node_name, "router")
-
     workflow.add_edge("compiler", END)
+
+    print("⚜️ CORONEL DE TURISMO: Puesto de mando establecido. Ejército de agentes listo para recibir órdenes.")
     return workflow.compile()

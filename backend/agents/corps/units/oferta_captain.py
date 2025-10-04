@@ -1,85 +1,63 @@
-from typing import TypedDict, Any, List
+from typing import TypedDict, Any
 from langgraph.graph import StateGraph, END
-from pydantic import BaseModel, Field
-from agents.corps.units.platoons.teniente_generico import get_generic_lieutenant_graph
 
-class LieutenantTask(BaseModel):
-    task_description: str
-    responsible_lieutenant: str
-
-class LieutenantPlan(BaseModel):
-    plan: List[LieutenantTask]
+# --- Importamos la fábrica de Tenientes Genéricos y el constructor del Sargento a comandar ---
+from .platoons.teniente_generico import get_generic_lieutenant_graph
+from .platoons.squads.gestion_oferta_sargento import get_gestion_oferta_sargento_graph
 
 class OfertaCaptainState(TypedDict):
+    """La pizarra táctica del Capitán de Oferta Turística."""
     coronel_order: str
-    lieutenant_plan: LieutenantPlan | None
-    task_queue: List[LieutenantTask]
-    completed_missions: list
+    app_context: Any
     final_report: str
     error: str | None
 
-async def create_lieutenant_plan(state: OfertaCaptainState) -> OfertaCaptainState:
-    print("--- 🧠 CAP. OFERTA TURÍSTICA: Creando Plan de Pelotón (SIMULADO)... ---")
-    plan = LieutenantPlan(plan=[
-        LieutenantTask(task_description=state['coronel_order'], responsible_lieutenant='Oferta')
-    ])
-    state.update({"lieutenant_plan": plan, "task_queue": plan.plan.copy(), "completed_missions": []})
-    return state
+# --- PUESTO DE MANDO: INSTANCIACIÓN DEL TENIENTE ---
+# Usamos la fábrica para crear un Teniente Supervisor que comanda al Sargento de Oferta.
+oferta_teniente_agent = get_generic_lieutenant_graph(
+    sargento_builder=get_gestion_oferta_sargento_graph,
+    teniente_name="Oferta Turística"
+)
 
-def route_to_lieutenant(state: OfertaCaptainState):
-    if state.get("error") or not state["task_queue"]:
-        return "compile_report"
-    return "delegate_to_generic_lieutenant"
+# --- NODOS DEL GRAFO SUPERVISOR DEL CAPITÁN ---
 
-async def delegate_node(state: OfertaCaptainState) -> OfertaCaptainState:
+async def delegate_to_lieutenant(state: OfertaCaptainState) -> OfertaCaptainState:
     """
-    Invoca al Teniente Genérico, configurándolo para que comande al Sargento de Oferta Turística.
+    (NODO ÚNICO DE EJECUCIÓN) Delega la misión completa al Teniente de Oferta Turística.
     """
-    mission = state["task_queue"].pop(0)
-    lieutenant_name = mission.responsible_lieutenant
-    sargento_module_name = "gestion_oferta_sargento"
-
-    print(f"--- 🚀 CAPITÁN OFERTA: Delegando a TTE. GENÉRICO para comandar a Sgto. de {lieutenant_name} -> '{mission.task_description}' ---")
-
-    generic_lieutenant_agent = get_generic_lieutenant_graph()
-
+    order = state['coronel_order']
+    print(f"--- 🫡 CAP. OFERTA: Recibida orden. Delegando a TTE. OFERTA -> '{order}' ---")
     try:
-        result = await generic_lieutenant_agent.ainvoke({
-            "captain_order": mission.task_description,
-            "app_context": state.get("app_context"),
-            "sargento_builder_path": f"agents.corps.units.platoons.squads.{sargento_module_name}.get_{sargento_module_name}_builder",
-            "sargento_name": lieutenant_name
+        result = await oferta_teniente_agent.ainvoke({
+            "captain_order": order,
+            "app_context": state.get('app_context')
         })
-        state["completed_missions"].append({"lieutenant": lieutenant_name, "report": result.get("final_report", "Sin reporte.")})
+        report_from_lieutenant = result.get("final_report", "El Teniente completó la misión sin un reporte detallado.")
+        state["final_report"] = report_from_lieutenant
     except Exception as e:
-        state["error"] = f"Error durante la delegación al Teniente Genérico para {lieutenant_name}: {e}"
+        error_message = f"Misión fallida bajo el mando del Teniente de Oferta Turística. Razón: {e}"
+        state["error"] = error_message
     return state
 
 async def compile_final_report(state: OfertaCaptainState) -> OfertaCaptainState:
+    """(NODO FINAL) Prepara el informe final para el Coronel."""
     if state.get("error"):
         state["final_report"] = state["error"]
-    else:
-        report_body = "\n".join([f"- Reporte del Tte. de {m['lieutenant']}: {m['report']}" for m in state["completed_missions"]])
-        state["final_report"] = f"Misión de gestión de Oferta Turística completada. Resumen:\n{report_body}"
     return state
 
-def get_oferta_captain_graph():
-    workflow = StateGraph(OfertaCaptainState)
-    workflow.add_node("planner", create_lieutenant_plan)
-    workflow.add_node("router", lambda s: s)
-    workflow.add_node("delegate_to_generic_lieutenant", delegate_node)
-    workflow.add_node("compiler", compile_final_report)
+# --- ENSAMBLAJE DEL GRAFO SUPERVISOR ---
 
-    workflow.set_entry_point("planner")
-    workflow.add_edge("planner", "router")
-    workflow.add_conditional_edges(
-        "router",
-        route_to_lieutenant,
-        {
-            "delegate_to_generic_lieutenant": "delegate_to_generic_lieutenant",
-            "compile_report": "compiler"
-        }
-    )
-    workflow.add_edge("delegate_to_generic_lieutenant", "router")
-    workflow.add_edge("compiler", END)
+def get_oferta_captain_graph():
+    """
+    Construye y compila el agente LangGraph para el Capitán de Oferta Turística.
+    Sigue el patrón "Supervisor" de delegación directa.
+    """
+    workflow = StateGraph(OfertaCaptainState)
+    workflow.add_node("delegate_mission", delegate_to_lieutenant)
+    workflow.add_node("compile_final_report", compile_final_report)
+    workflow.set_entry_point("delegate_mission")
+    workflow.add_edge("delegate_mission", "compile_final_report")
+    workflow.add_edge("compile_final_report", END)
+
+    print("✅ Doctrina aplicada: Capitán Supervisor de Oferta Turística compilado y listo.")
     return workflow.compile()

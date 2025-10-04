@@ -2,8 +2,11 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { FiChevronDown, FiChevronRight, FiMenu, FiX } from 'react-icons/fi';
+import { FiChevronDown, FiChevronRight, FiMenu, FiX, FiLogOut } from 'react-icons/fi';
 import Image from 'next/image';
+import { useAuth } from '@/contexts/AuthContext';
+import NotificationBell from './NotificationBell';
+import LanguageSwitcher from './LanguageSwitcher';
 
 // Interfaz para los elementos del menú, coincidiendo con el serializador de la API
 interface MenuItem {
@@ -141,31 +144,52 @@ const MobileMenuItem = ({ item, level = 0 }: { item: MenuItem; level?: number })
   );
 };
 
+interface SiteConfig {
+  nombre_entidad_principal: string;
+  nombre_entidad_secundaria: string;
+  nombre_secretaria: string;
+  nombre_direccion: string;
+  logo_url: string | null;
+}
+
 export default function Header() {
+  const { isAuthenticated, logout, user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchMenuItems = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/config/menu-items/');
-        if (!response.ok) {
-          throw new Error('Error al cargar el menú');
-        }
-        const data = await response.json();
-        // La API devuelve un objeto paginado, los resultados están en la clave 'results'
-        setMenuItems(data.results || []);
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+        // Hacemos ambas llamadas en paralelo para optimizar la carga
+        const [menuResponse, configResponse] = await Promise.all([
+          fetch(`${apiUrl}/config/menu-items/`),
+          fetch(`${apiUrl}/config/site-config/`)
+        ]);
+
+        if (!menuResponse.ok) throw new Error('Error al cargar el menú');
+        if (!configResponse.ok) throw new Error('Error al cargar la configuración del sitio');
+
+        const menuData = await menuResponse.json();
+        const configData = await configResponse.json();
+
+        setMenuItems(menuData.results || []);
+        setSiteConfig(configData);
       } catch (error) {
-        console.error("No se pudieron obtener los elementos del menú:", error);
-        // Opcional: Cargar un menú por defecto en caso de error
+        console.error("No se pudieron obtener los datos de la cabecera:", error);
       } finally {
         setIsLoading(false);
       }
     };
-
-    fetchMenuItems();
+    fetchData();
   }, []);
+
+  const handleLogout = () => {
+    logout();
+    setIsMenuOpen(false);
+  };
 
   return (
     <header className="sticky top-0 z-50 font-sans bg-white shadow-md">
@@ -176,13 +200,17 @@ export default function Header() {
             {/* Logo */}
             <div className="flex-shrink-0">
               <Link href="/" className="flex items-center space-x-3">
-                {/* Espacio para el logo de la alcaldía */}
-                <div className="h-12 w-12 flex items-center justify-center">
-                   <Image src="/logo.svg" alt="Logo Alcaldía de Puerto Gaitán" width={48} height={48} />
+                <div className="h-12 w-12 relative flex items-center justify-center">
+                   <Image
+                     src={siteConfig?.logo_url || "/logo.svg"}
+                     alt="Logo Alcaldía de Puerto Gaitán"
+                     layout="fill"
+                     objectFit="contain"
+                   />
                 </div>
                 <div>
-                    <span className="text-xl font-bold text-gray-800">Alcaldía de</span>
-                    <span className="block text-lg font-semibold text-blue-600">Puerto Gaitán</span>
+                    <span className="text-xl font-bold text-gray-800">{siteConfig?.nombre_entidad_principal || 'Alcaldía de'}</span>
+                    <span className="block text-lg font-semibold text-blue-600">{siteConfig?.nombre_entidad_secundaria || 'Puerto Gaitán'}</span>
                 </div>
               </Link>
             </div>
@@ -190,30 +218,42 @@ export default function Header() {
             {/* Título Central */}
             <div className="hidden lg:flex flex-col items-center flex-grow px-4">
                 <h1 className="text-xl font-bold text-gray-800 tracking-tight text-center">
-                    Secretaría de Turismo y desarrollo económico
+                    {siteConfig?.nombre_secretaria || 'Secretaría de Turismo y Desarrollo Económico'}
                 </h1>
                 <p className="text-sm text-gray-600">
-                    Dirección de Turismo
+                    {siteConfig?.nombre_direccion || 'Dirección de Turismo'}
                 </p>
             </div>
 
             {/* Botones de Acción para Desktop */}
             <div className="hidden lg:flex items-center space-x-4 flex-shrink-0">
-              <Link href="/registro" className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
-                Regístrese
-              </Link>
-              <Link href="/login" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-                Ingreso
-              </Link>
+              <LanguageSwitcher />
+              <div className="h-6 border-l border-gray-300"></div>
+              {isAuthenticated ? (
+                <>
+                  <NotificationBell />
+                  <Link href={user?.role === 'TURISTA' ? '/mi-viaje' : '/dashboard'} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg">
+                    Mi Panel
+                  </Link>
+                  <button onClick={handleLogout} className="p-2 text-gray-600 hover:text-red-600 rounded-full hover:bg-gray-100">
+                     <FiLogOut className="h-5 w-5" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link href="/registro" className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg">
+                    Regístrese
+                  </Link>
+                  <Link href="/login" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg">
+                    Ingreso
+                  </Link>
+                </>
+              )}
             </div>
 
             {/* Botón de Menú para Móvil */}
             <div className="lg:hidden">
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:text-gray-800 hover:bg-gray-100 focus:outline-none"
-                aria-label="Abrir menú principal"
-              >
+              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="inline-flex items-center justify-center p-2 rounded-md text-gray-600">
                 {isMenuOpen ? <FiX className="h-7 w-7" /> : <FiMenu className="h-7 w-7" />}
               </button>
             </div>
@@ -223,29 +263,37 @@ export default function Header() {
 
       {/* --- Barra de Navegación Principal --- */}
       <nav className="hidden lg:flex max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 h-14 items-center justify-center space-x-8">
-        {isLoading ? (
-          <p className="text-gray-500">Cargando menú...</p>
-        ) : (
-          menuItems.map((item) => <NavLink key={item.id} item={item} />)
-        )}
+        {isLoading ? <p className="text-gray-500">Cargando menú...</p> : menuItems.map((item) => <NavLink key={item.id} item={item} />)}
       </nav>
 
       {/* Menú desplegable para Móvil */}
       {isMenuOpen && (
-        <div className="lg:hidden bg-white border-t border-gray-200">
+        <div className="lg:hidden bg-white border-t">
           <div className="px-4 pt-4 pb-6 space-y-2">
-            {isLoading ? (
-              <p className="text-gray-500 text-center">Cargando...</p>
-            ) : (
-              menuItems.map((item) => <MobileMenuItem key={item.id} item={item} />)
-            )}
+            {isLoading ? <p className="text-center">Cargando...</p> : menuItems.map((item) => <MobileMenuItem key={item.id} item={item} />)}
             <div className="pt-4 mt-4 border-t border-gray-200 space-y-3">
-              <Link href="/registro" className="block w-full text-center px-5 py-3 text-base font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">
-                Regístrese
-              </Link>
-              <Link href="/login" className="block w-full text-center px-5 py-3 text-base font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg">
-                Ingreso
-              </Link>
+              <div className="flex justify-center py-2">
+                <LanguageSwitcher />
+              </div>
+              {isAuthenticated ? (
+                <>
+                  <Link href={user?.role === 'TURISTA' ? '/mi-viaje' : '/dashboard'} className="block w-full text-center px-5 py-3 text-base font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg">
+                    Mi Panel
+                  </Link>
+                   <button onClick={handleLogout} className="block w-full text-center px-5 py-3 text-base font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">
+                    Cerrar Sesión
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link href="/registro" className="block w-full text-center px-5 py-3 text-base font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">
+                    Regístrese
+                  </Link>
+                  <Link href="/login" className="block w-full text-center px-5 py-3 text-base font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg">
+                    Ingreso
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

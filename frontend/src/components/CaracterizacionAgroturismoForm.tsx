@@ -5,7 +5,7 @@ import { CaracterizacionAgroturismo } from '@/services/api';
 
 interface Props {
   initialData?: CaracterizacionAgroturismo | null;
-  onSubmit: (formData: any) => void;
+  onSubmit: (formData: Partial<CaracterizacionAgroturismo>) => void;
   onCancel: () => void;
   prestadorId: number;
   readOnly?: boolean;
@@ -60,21 +60,28 @@ const CaracterizacionAgroturismoForm: React.FC<Props> = ({ initialData, onSubmit
     setFormData(prev => ({ ...prev, [name]: isCheckbox ? checked : value }));
   };
 
-  const handleJsonChange = (category: keyof CaracterizacionAgroturismo, key: string, value: any) => {
-    setFormData(prev => ({
-        ...prev,
-        [category]: {
-            ...(prev[category] as object || {}),
-            [key]: value,
-        }
-    }));
+  const handleJsonChange = (
+    category: keyof CaracterizacionAgroturismo,
+    key: string,
+    value: boolean
+  ) => {
+    setFormData((prev) => {
+      const currentCategory = prev[category] as Record<string, unknown>;
+      const newCategoryState = {
+        ...(currentCategory || {}),
+        [key]: value,
+      };
+      return { ...prev, [category]: newCategoryState };
+    });
   };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (readOnly) return;
     // Remove empty fields before submitting
-    const cleanedData = Object.fromEntries(Object.entries(formData).filter(([_, v]) => v != null));
+    const cleanedData = Object.fromEntries(
+      Object.entries(formData).filter(([, v]) => v != null)
+    );
     onSubmit(cleanedData);
   };
 
@@ -102,7 +109,7 @@ const CaracterizacionAgroturismoForm: React.FC<Props> = ({ initialData, onSubmit
         <div>
             <h4 className="font-semibold">Actividades Agrícolas</h4>
             <label>
-                <input type="checkbox" checked={(formData.actividades_agricolas as any)?.observacion_cultivos || false} onChange={e => handleJsonChange('actividades_agricolas', 'observacion_cultivos', e.target.checked)} disabled={readOnly} />
+                <input type="checkbox" checked={(formData.actividades_agricolas as Record<string, boolean>)?.observacion_cultivos || false} onChange={e => handleJsonChange('actividades_agricolas', 'observacion_cultivos', e.target.checked)} disabled={readOnly} />
                 Observación de Manejo de cultivos
             </label>
             {/* ... add all other checkboxes from the document ... */}
@@ -114,7 +121,7 @@ const CaracterizacionAgroturismoForm: React.FC<Props> = ({ initialData, onSubmit
         <div>
             <h4 className="font-semibold">¿Cuál de las siguientes características de Agroturismo desea potencializar?</h4>
             <label>
-                <input type="checkbox" checked={(formData.caracteristicas_a_potencializar as any)?.agricola || false} onChange={e => handleJsonChange('caracteristicas_a_potencializar', 'agricola', e.target.checked)} disabled={readOnly} />
+                <input type="checkbox" checked={(formData.caracteristicas_a_potencializar as Record<string, boolean>)?.agricola || false} onChange={e => handleJsonChange('caracteristicas_a_potencializar', 'agricola', e.target.checked)} disabled={readOnly} />
                 Agrícola
             </label>
             {/* ... other checkboxes ... */}

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
+import Image from 'next/image';
 import { CaracterizacionArtesano } from '@/services/api';
 
 interface Props {
@@ -42,27 +43,18 @@ const CaracterizacionArtesanoForm: React.FC<Props> = ({ initialData, onSubmit, o
     setFormData(prev => ({ ...prev, [name]: isCheckbox ? checked : value }));
   };
 
-  const handleJsonChange = (category: keyof CaracterizacionArtesano, key: string, value: any) => {
-    setFormData(prev => ({
-        ...prev,
-        [category]: {
-            ...((prev as any)[category] || {}),
-            [key]: value,
-        }
-    }));
-  };
-
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (readOnly) return;
 
     const data = new FormData();
-    Object.keys(formData).forEach(key => {
-        const value = (formData as any)[key];
-        if (key === 'foto') return;
-        if (value instanceof File) return;
+    // Use a type assertion for the keys to ensure type safety
+    (Object.keys(formData) as Array<keyof CaracterizacionArtesano>).forEach(key => {
+        const value = formData[key];
+        if (key === 'foto' || value instanceof File) return;
 
         if (typeof value === 'object' && value !== null) {
+            // Ensure array is stringified correctly
             data.append(key, JSON.stringify(value));
         } else if (value !== null && value !== undefined) {
             data.append(key, String(value));
@@ -91,7 +83,7 @@ const CaracterizacionArtesanoForm: React.FC<Props> = ({ initialData, onSubmit, o
          <div>
             <label>Foto del Artesano</label>
             <input type="file" name="foto" onChange={(e) => setFotoFile(e.target.files ? e.target.files[0] : null)} className="input" disabled={readOnly} />
-            {initialData?.foto && !fotoFile && <img src={initialData.foto} alt="Foto actual" className="h-24 w-24 object-cover rounded-full mt-2" />}
+            {initialData?.foto && !fotoFile && <Image src={initialData.foto} alt="Foto actual" width={96} height={96} className="h-24 w-24 object-cover rounded-full mt-2" />}
         </div>
       </FormSection>
 

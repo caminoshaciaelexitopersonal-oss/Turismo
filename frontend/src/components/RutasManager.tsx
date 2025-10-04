@@ -10,6 +10,8 @@ import {
 } from '@/services/api';
 import { FiPlus, FiEdit, FiTrash2, FiX } from 'react-icons/fi';
 
+type ListItem = Record<string, string>;
+
 // Helper component for dynamic JSON fields
 const DynamicListInput = ({
   label,
@@ -19,8 +21,8 @@ const DynamicListInput = ({
   readOnly = false,
 }: {
   label: string;
-  items: any[];
-  setItems: (items: any[]) => void;
+  items: ListItem[];
+  setItems: (items: ListItem[]) => void;
   fields: { name: string; placeholder: string; type?: string }[];
   readOnly?: boolean;
 }) => {
@@ -31,7 +33,7 @@ const DynamicListInput = ({
   };
 
   const addItem = () => {
-    const newItem: { [key: string]: any } = {};
+    const newItem: ListItem = {};
     fields.forEach(field => {
       newItem[field.name] = '';
     });

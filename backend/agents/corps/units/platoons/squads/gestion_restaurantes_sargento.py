@@ -1,20 +1,17 @@
 from .sargento_base_graph import SargentoGraphBuilder
-from tools.herramientas_prestador import PrestadorSoldiers
-from typing import Any
+from tools.herramientas_restaurantes import get_restaurantes_soldiers
+from tools.herramientas_prestador import get_prestador_soldiers
 
-def get_gestion_restaurantes_sargento_builder():
+def get_gestion_restaurantes_sargento_graph():
     """
-    Returns a builder function for the Restaurantes Sargento agent.
-    This sargento specializes in restaurant-related operations.
+    Construye y devuelve el agente Sargento de Gestión de Restaurantes compilado.
+
+    Este sargento comanda un arsenal combinado: las herramientas generales de
+    prestadores y las herramientas específicas para restaurantes (como la gestión
+    de menús o promociones especiales).
     """
-    def build_sargento_agent(api_client: Any):
-        """Builds the sargento's compiled graph."""
-
-        squad = PrestadorSoldiers(api_client).get_all_soldiers()
-
-        builder = SargentoGraphBuilder(squad, squad_name="Gestión de Restaurantes")
-        return builder.build_graph()
-
-    print("✅ Doctrina aplicada: Sargento de Gestión de Restaurantes listo para el despliegue.")
-
-    return build_sargento_agent
+    squad = get_prestador_soldiers() + get_restaurantes_soldiers()
+    builder = SargentoGraphBuilder(squad, squad_name="Gestión de Restaurantes")
+    sargento_agent = builder.build_graph()
+    print("✅ Doctrina aplicada: Sargento de Gestión de Restaurantes compilado y listo.")
+    return sargento_agent

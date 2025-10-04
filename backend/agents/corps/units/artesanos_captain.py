@@ -1,75 +1,58 @@
-from typing import TypedDict, Any, List
+from typing import TypedDict, Any
 from langgraph.graph import StateGraph, END
-from pydantic import BaseModel, Field
 
-class LieutenantTask(BaseModel):
-    task_description: str
-    responsible_lieutenant: str
+# --- Importamos el Pelotón que este Capitán comanda ---
+from .platoons.artesanos_teniente import get_artesanos_teniente_graph
 
-class LieutenantPlan(BaseModel):
-    plan: List[LieutenantTask]
-
-class ArtesanosCaptainState(TypedDict):
+class ArtesanoCaptainState(TypedDict):
+    """La pizarra táctica del Capitán de Artesanos."""
     coronel_order: str
-    lieutenant_plan: LieutenantPlan | None
-    task_queue: List[LieutenantTask]
-    completed_missions: list
+    app_context: Any
     final_report: str
     error: str | None
 
-async def create_lieutenant_plan(state: ArtesanosCaptainState) -> ArtesanosCaptainState:
-    print("--- 🧠 CAP. ARTESANOS: Creando Plan de Pelotón... ---")
-    # For now, we simulate the plan, as the captain's role is direct delegation.
-    plan_simulado = LieutenantPlan(plan=[
-        LieutenantTask(
-            task_description=state['coronel_order'],
-            responsible_lieutenant='Artesanos'
-        )
-    ])
-    state.update({"lieutenant_plan": plan_simulado, "task_queue": plan_simulado.plan.copy(), "completed_missions": []})
+# --- PUESTO DE MANDO: INSTANCIACIÓN DEL TENIENTE ---
+artesanos_teniente_agent = get_artesanos_teniente_graph()
+
+# --- NODOS DEL GRAFO SUPERVISOR DEL CAPITÁN ---
+
+async def delegate_to_lieutenant(state: ArtesanoCaptainState) -> ArtesanoCaptainState:
+    """
+    (NODO ÚNICO DE EJECUCIÓN) Delega la misión completa al Teniente de Artesanos.
+    """
+    order = state['coronel_order']
+    print(f"--- 🫡 CAP. ARTESANOS: Recibida orden. Delegando a TTE. ARTESANOS -> '{order}' ---")
+    try:
+        result = await artesanos_teniente_agent.ainvoke({
+            "captain_order": order,
+            "app_context": state.get('app_context')
+        })
+        report_from_lieutenant = result.get("final_report", "El Teniente completó la misión sin un reporte detallado.")
+        state["final_report"] = report_from_lieutenant
+    except Exception as e:
+        error_message = f"Misión fallida bajo el mando del Teniente de Artesanos. Razón: {e}"
+        state["error"] = error_message
     return state
 
-def route_to_lieutenant(state: ArtesanosCaptainState):
-    if state.get("error") or not state["task_queue"]:
-        return "compile_report"
-    return "artesanos_lieutenant"
-
-async def artesanos_node(state: ArtesanosCaptainState) -> ArtesanosCaptainState:
-    """Carga perezosamente al Teniente de Artesanos y le delega la misión."""
-    from agents.corps.units.platoons.artesanos_teniente import get_artesanos_teniente_graph
-    lieutenant_agent = get_artesanos_teniente_graph()
-
-    mission = state["task_queue"].pop(0)
-    print(f"--- 🔽 CAPITÁN: Delegando a TTE. ARTESANOS -> '{mission.task_description}' ---")
-    result = await lieutenant_agent.ainvoke({"captain_order": mission.task_description, "app_context": state.get("app_context")})
-    state["completed_missions"].append({"lieutenant": "Artesanos", "report": result.get("final_report", "Sin reporte.")})
-    return state
-
-async def compile_final_report(state: ArtesanosCaptainState) -> ArtesanosCaptainState:
+async def compile_final_report(state: ArtesanoCaptainState) -> ArtesanoCaptainState:
+    """(NODO FINAL) Prepara el informe final para el Coronel."""
     if state.get("error"):
         state["final_report"] = state["error"]
-    else:
-        report_body = "\n".join([f"- Reporte del Tte. de {m['lieutenant']}: {m['report']}" for m in state["completed_missions"]])
-        state["final_report"] = f"Misión de gestión de Artesanos completada. Resumen:\n{report_body}"
     return state
 
-def get_artesanos_captain_graph():
-    workflow = StateGraph(ArtesanosCaptainState)
-    workflow.add_node("planner", create_lieutenant_plan)
-    workflow.add_node("router", lambda s: s)
-    workflow.add_node("artesanos_lieutenant", artesanos_node)
-    workflow.add_node("compiler", compile_final_report)
+# --- ENSAMBLAJE DEL GRAFO SUPERVISOR ---
 
-    workflow.set_entry_point("planner")
-    workflow.add_edge("planner", "router")
-    workflow.add_conditional_edges(
-        "router",
-        route_to_lieutenant,
-        {
-            "artesanos_lieutenant": "artesanos_lieutenant",
-            "compile_report": "compiler"
-        }
-    )
-    workflow.add_edge("artesanos_lieutenant", "router")
-    workflow.add_edge("compiler", END)
+def get_artesanos_captain_graph():
+    """
+    Construye y compila el agente LangGraph para el Capitán de Artesanos.
+    Sigue el patrón "Supervisor" de delegación directa.
+    """
+    workflow = StateGraph(ArtesanoCaptainState)
+    workflow.add_node("delegate_mission", delegate_to_lieutenant)
+    workflow.add_node("compile_final_report", compile_final_report)
+    workflow.set_entry_point("delegate_mission")
+    workflow.add_edge("delegate_mission", "compile_final_report")
+    workflow.add_edge("compile_final_report", END)
+
+    print("✅ Doctrina aplicada: Capitán Supervisor de Artesanos compilado y listo.")
     return workflow.compile()

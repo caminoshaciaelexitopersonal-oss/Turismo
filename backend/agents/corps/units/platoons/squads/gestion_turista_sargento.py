@@ -1,19 +1,16 @@
 from .sargento_base_graph import SargentoGraphBuilder
-from tools.herramientas_turista import TuristaSoldiers
-from typing import Any
+from tools.herramientas_turista import get_turista_soldiers
 
-def get_gestion_turista_sargento_builder():
+def get_gestion_turista_sargento_graph():
     """
-    Returns a builder function for the Turista Sargento agent.
+    Construye y devuelve el agente Sargento de Asistencia al Turista compilado.
+
+    Este sargento comanda a la escuadra de soldados que interactúan con los turistas.
+    Sus misiones incluyen buscar información, gestionar la lista 'Mi Viaje',
+    recibir reseñas y procesar sugerencias.
     """
-    def build_sargento_agent(api_client: Any):
-        """Builds the sargento's compiled graph."""
-
-        squad = TuristaSoldiers(api_client).get_all_soldiers()
-
-        builder = SargentoGraphBuilder(squad, squad_name="Gestión de Turistas")
-        return builder.build_graph()
-
-    print("✅ Doctrina aplicada: Sargento de Gestión de Turistas listo para el despliegue.")
-
-    return build_sargento_agent
+    squad = get_turista_soldiers()
+    builder = SargentoGraphBuilder(squad, squad_name="Asistencia al Turista")
+    sargento_agent = builder.build_graph()
+    print("✅ Doctrina aplicada: Sargento de Asistencia al Turista compilado y listo.")
+    return sargento_agent

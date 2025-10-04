@@ -7,14 +7,15 @@ import Link from 'next/link';
 import SaveButton from '@/components/SaveButton';
 import Image from 'next/image';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 interface Atractivo {
   id: number;
   nombre: string;
   slug: string;
+  descripcion: string;
   categoria_color: 'AMARILLO' | 'ROJO' | 'BLANCO';
-  imagen_principal: string | null;
+  imagen_principal_url: string | null;
 }
 
 const CategoriaInfo = {
@@ -89,33 +90,28 @@ export default function AtractivosPage() {
           ) : (
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               {atractivos.map((atractivo) => (
-                <Link key={atractivo.id} href={`/atractivos/${atractivo.slug}`} className="block group">
-                  <div className="bg-white rounded-lg shadow-lg overflow-hidden h-full flex flex-col transform transition-transform duration-300 hover:-translate-y-2">
-                    <div className="relative h-56 w-full">
-                      <Image
-                        src={atractivo.imagen_principal || 'https://via.placeholder.com/400x300/CCCCCC/FFFFFF?text=Puerto+Gaitán'}
-                        alt={atractivo.nombre}
-                        layout="fill"
-                        objectFit="cover"
-                      />
-                      <div className={`absolute top-0 left-0 h-full w-1 ${CategoriaInfo[atractivo.categoria_color].color}`}></div>
-                      <span className={`absolute bottom-2 left-2 px-2 py-1 text-xs font-bold text-white rounded-full ${CategoriaInfo[atractivo.categoria_color].color}`}>
-                        {CategoriaInfo[atractivo.categoria_color].nombre}
-                      </span>
-                      {/* Botón de Guardar */}
-                      <SaveButton contentType="atractivoturistico" objectId={atractivo.id} />
+                <div key={atractivo.id} className="border rounded-lg shadow-md hover:shadow-xl transition-shadow flex flex-col h-full bg-white">
+                    <div className="relative w-full h-48">
+                        <Image
+                          src={atractivo.imagen_principal_url || '/placeholder.png'}
+                          alt={`Imagen de ${atractivo.nombre}`}
+                          layout="fill"
+                          objectFit="cover"
+                          className="rounded-t-lg"
+                        />
+                        <span className={`absolute bottom-2 left-2 px-2 py-1 text-xs font-bold text-white rounded-full ${CategoriaInfo[atractivo.categoria_color].color}`}>
+                            {CategoriaInfo[atractivo.categoria_color].nombre}
+                        </span>
+                         <SaveButton contentType="atractivoturistico" objectId={atractivo.id} />
                     </div>
-                    <div className="p-6 flex-grow flex flex-col">
-                      <h3 className="text-xl font-bold text-gray-900 group-hover:text-indigo-600">
-                        {atractivo.nombre}
-                      </h3>
-                      <div className="flex-grow"></div>
-                      <p className="mt-4 text-indigo-500 font-semibold self-start">
-                        Descubrir más →
-                      </p>
+                    <div className="p-4 flex flex-col flex-grow">
+                        <h3 className="text-lg font-bold mb-1">{atractivo.nombre}</h3>
+                        <p className="text-xs text-gray-700 flex-grow mb-3 line-clamp-3">{atractivo.descripcion || "Sin descripción disponible."}</p>
+                        <Link href={`/atractivos/${atractivo.slug}`} className="mt-auto w-full bg-blue-600 text-white px-4 py-2 rounded text-center hover:bg-blue-700 transition-colors">
+                            Ver más
+                        </Link>
                     </div>
-                  </div>
-                </Link>
+                </div>
               ))}
               {atractivos.length === 0 && <p className="col-span-full text-center text-gray-500">No hay atractivos para mostrar en esta categoría.</p>}
             </div>

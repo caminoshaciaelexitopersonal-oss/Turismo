@@ -1,19 +1,16 @@
 from .sargento_base_graph import SargentoGraphBuilder
-from tools.herramientas_atractivos import AtractivosSoldiers
-from typing import Any
+from tools.herramientas_atractivos import get_atractivos_soldiers
 
-def get_gestion_atractivos_sargento_builder():
+def get_gestion_atractivos_sargento_graph():
     """
-    Returns a builder function for the Atractivos Sargento agent.
+    Construye y devuelve el agente Sargento de Gestión de Atractivos Turísticos compilado.
+
+    Este sargento comanda a la escuadra responsable de crear, actualizar y publicar
+    los atractivos turísticos de la plataforma, gestionando su información detallada
+    y sus galerías de imágenes.
     """
-    def build_sargento_agent(api_client: Any):
-        """Builds the sargento's compiled graph using the provided api_client."""
-
-        squad = AtractivosSoldiers(api_client).get_all_soldiers()
-
-        builder = SargentoGraphBuilder(squad, squad_name="Gestión de Atractivos")
-        return builder.build_graph()
-
-    print("✅ Doctrina aplicada: Sargento de Gestión de Atractivos listo para el despliegue.")
-
-    return build_sargento_agent
+    squad = get_atractivos_soldiers()
+    builder = SargentoGraphBuilder(squad, squad_name="Gestión de Atractivos Turísticos")
+    sargento_agent = builder.build_graph()
+    print("✅ Doctrina aplicada: Sargento de Gestión de Atractivos Turísticos compilado y listo.")
+    return sargento_agent

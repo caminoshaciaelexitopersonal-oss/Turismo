@@ -3,16 +3,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/contexts/AuthContext';
-import { FiUser, FiSave, FiLoader, FiCheckCircle, FiAlertCircle, FiFileText } from 'react-icons/fi';
+import { FiSave, FiLoader, FiCheckCircle, FiAlertCircle, FiFileText } from 'react-icons/fi';
 import CaracterizacionArtesanoForm from './CaracterizacionArtesanoForm';
 import {
     getArtesanoCaracterizacionByArtesanoId,
     createArtesanoCaracterizacion,
     updateArtesanoCaracterizacion,
-    CaracterizacionArtesano
+    CaracterizacionArtesano,
+    ImagenArtesano
 } from '@/services/api';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 interface ArtesanoProfileData {
   id: number;
@@ -21,7 +22,7 @@ interface ArtesanoProfileData {
   descripcion: string;
   aprobado: boolean;
   foto_url: string | null;
-  galeria_imagenes: any[];
+  galeria_imagenes: ImagenArtesano[];
 }
 
 const FormSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -107,7 +108,7 @@ export default function ArtesanoProfileForm() {
       }
       setSuccess('Caracterización guardada con éxito.');
       handleCloseModal();
-    } catch (err) {
+    } catch {
       setError('Error al guardar la caracterización.');
     }
   };

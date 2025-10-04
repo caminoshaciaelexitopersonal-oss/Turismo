@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiClient } from '@/services/api'; // Usamos apiClient para no tener dependencias circulares
+import api from '@/services/api'; // Usamos la instancia api exportada por defecto
 import { FiSend } from 'react-icons/fi';
 
 const SugerenciasPage = () => {
@@ -31,7 +31,7 @@ const SugerenciasPage = () => {
     setSuccess(null);
 
     try {
-      await apiClient.post('/sugerencias/', formData);
+      await api.post('/sugerencias/', formData);
       setSuccess('¡Gracias! Tu mensaje ha sido enviado correctamente.');
       // Reset form
       setFormData({

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, FormEvent } from 'react';
+import Image from 'next/image';
 import { CaracterizacionGuiaTuristico } from '@/services/api';
 
 interface Props {
@@ -43,13 +44,17 @@ const CaracterizacionGuiaTuristicoForm: React.FC<Props> = ({ initialData, onSubm
     setFormData(prev => ({ ...prev, [name]: isCheckbox ? checked : value }));
   };
 
-  const handleJsonChange = (category: keyof CaracterizacionGuiaTuristico, key: string, value: any) => {
-    setFormData(prev => ({
-        ...prev,
-        [category]: {
-            ...(prev[category] as object || {}),
-            [key]: value,
-        }
+  const handleJsonChange = (
+    category: keyof CaracterizacionGuiaTuristico,
+    key: string,
+    value: boolean
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      [category]: {
+        ...((prev[category] as Record<string, unknown>) || {}),
+        [key]: value,
+      },
     }));
   };
 
@@ -58,10 +63,9 @@ const CaracterizacionGuiaTuristicoForm: React.FC<Props> = ({ initialData, onSubm
     if (readOnly) return;
 
     const data = new FormData();
-    Object.keys(formData).forEach(key => {
-        const value = (formData as any)[key];
-        if (key === 'foto') return; // Handled separately
-        if (value instanceof File) return;
+    (Object.keys(formData) as Array<keyof CaracterizacionGuiaTuristico>).forEach(key => {
+        const value = formData[key];
+        if (key === 'foto' || value instanceof File) return;
 
         if (typeof value === 'object' && value !== null) {
             data.append(key, JSON.stringify(value));
@@ -95,16 +99,16 @@ const CaracterizacionGuiaTuristicoForm: React.FC<Props> = ({ initialData, onSubm
         <div>
             <label>Foto del Guía</label>
             <input type="file" name="foto" onChange={(e) => setFotoFile(e.target.files ? e.target.files[0] : null)} className="input" disabled={readOnly} />
-            {initialData?.foto && !fotoFile && <img src={initialData.foto} alt="Foto actual" className="h-24 w-24 object-cover rounded-full mt-2" />}
+            {initialData?.foto && !fotoFile && <Image src={initialData.foto} alt="Foto actual" width={96} height={96} className="h-24 w-24 object-cover rounded-full mt-2" />}
         </div>
       </FormSection>
 
       <FormSection title="2. Especialidad del Guía">
         <p>Marque las especialidades que apliquen:</p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            <label><input type="checkbox" checked={(formData.especialidades as any)?.agroturismo || false} onChange={e => handleJsonChange('especialidades', 'agroturismo', e.target.checked)} disabled={readOnly} /> Agroturismo</label>
-            <label><input type="checkbox" checked={(formData.especialidades as any)?.aviturismo || false} onChange={e => handleJsonChange('especialidades', 'aviturismo', e.target.checked)} disabled={readOnly} /> Aviturismo</label>
-            <label><input type="checkbox" checked={(formData.especialidades as any)?.ecoturismo || false} onChange={e => handleJsonChange('especialidades', 'ecoturismo', e.target.checked)} disabled={readOnly} /> Ecoturismo</label>
+            <label><input type="checkbox" checked={!!(formData.especialidades as Record<string, boolean>)?.agroturismo} onChange={e => handleJsonChange('especialidades', 'agroturismo', e.target.checked)} disabled={readOnly} /> Agroturismo</label>
+            <label><input type="checkbox" checked={!!(formData.especialidades as Record<string, boolean>)?.aviturismo} onChange={e => handleJsonChange('especialidades', 'aviturismo', e.target.checked)} disabled={readOnly} /> Aviturismo</label>
+            <label><input type="checkbox" checked={!!(formData.especialidades as Record<string, boolean>)?.ecoturismo} onChange={e => handleJsonChange('especialidades', 'ecoturismo', e.target.checked)} disabled={readOnly} /> Ecoturismo</label>
             {/* Add more specialities as needed */}
         </div>
       </FormSection>

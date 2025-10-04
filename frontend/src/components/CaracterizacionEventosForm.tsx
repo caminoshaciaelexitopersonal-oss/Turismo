@@ -1,6 +1,9 @@
 "use client";
 
+"use client";
+
 import React, { useState, useEffect, FormEvent } from 'react';
+import Image from 'next/image';
 import { CaracterizacionEmpresaEventos } from '@/services/api';
 
 interface Props {
@@ -66,16 +69,20 @@ const CaracterizacionEventosForm: React.FC<Props> = ({ initialData, onSubmit, on
     }
   };
 
-  const handleJsonChange = (category: string, key: string, value: any) => {
-    setFormData(prev => {
-        const currentData = (prev as any)[category] || {};
-        return {
-            ...prev,
-            [category]: {
-                ...currentData,
-                [key]: value,
-            }
-        };
+  const handleJsonChange = (
+    category: keyof CaracterizacionEmpresaEventos,
+    key: string,
+    value: string | boolean
+  ) => {
+    setFormData((prev) => {
+      const currentCategory = prev[category] as Record<string, unknown> | undefined;
+      return {
+        ...prev,
+        [category]: {
+          ...(currentCategory || {}),
+          [key]: value,
+        },
+      };
     });
   };
 
@@ -83,14 +90,13 @@ const CaracterizacionEventosForm: React.FC<Props> = ({ initialData, onSubmit, on
     e.preventDefault();
     const data = new FormData();
 
-    // Append all form data fields
-    Object.keys(formData).forEach(key => {
-        const value = (formData as any)[key];
+    (Object.keys(formData) as Array<keyof CaracterizacionEmpresaEventos>).forEach(key => {
+        const value = formData[key];
         if (key === 'logo') return;
         if (typeof value === 'object' && value !== null) {
             data.append(key, JSON.stringify(value));
         } else if (value !== null && value !== undefined) {
-            data.append(key, value);
+            data.append(key, String(value));
         }
     });
 
@@ -107,7 +113,6 @@ const CaracterizacionEventosForm: React.FC<Props> = ({ initialData, onSubmit, on
         Caracterización de Empresa de Eventos
       </h2>
 
-      {/* Seccion 1: Datos Generales */}
       <div className="space-y-4">
         <h3 className="text-xl font-semibold text-gray-700">1. Datos Generales</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -128,7 +133,7 @@ const CaracterizacionEventosForm: React.FC<Props> = ({ initialData, onSubmit, on
           <div>
             <label>Logo de la empresa</label>
             <input type="file" name="logo" onChange={(e) => setLogoFile(e.target.files ? e.target.files[0] : null)} className="w-full px-3 py-2 border rounded-md" disabled={readOnly} />
-            {initialData?.logo && !logoFile && <img src={initialData.logo} alt="Logo actual" className="h-20 mt-2" />}
+            {initialData?.logo && !logoFile && <Image src={initialData.logo} alt="Logo actual" width={80} height={80} className="h-20 w-auto mt-2" />}
           </div>
         </div>
 
@@ -144,7 +149,6 @@ const CaracterizacionEventosForm: React.FC<Props> = ({ initialData, onSubmit, on
         </div>
       </div>
 
-      {/* Seccion 2: Especificaciones */}
       <div className="space-y-4">
         <h3 className="text-xl font-semibold text-gray-700">2. Especificaciones</h3>
         <div>
@@ -161,27 +165,26 @@ const CaracterizacionEventosForm: React.FC<Props> = ({ initialData, onSubmit, on
             <label>Servicios Ofrecidos</label>
             <div className="space-y-2">
                 <label className="flex items-center space-x-2">
-                    <input type="checkbox" checked={(formData.servicios_ofrecidos as any)?.ferias || false} onChange={e => handleJsonChange('servicios_ofrecidos', 'ferias', e.target.checked)} disabled={readOnly} />
+                    <input type="checkbox" checked={!!(formData.servicios_ofrecidos as Record<string, unknown>)?.ferias} onChange={e => handleJsonChange('servicios_ofrecidos', 'ferias', e.target.checked)} disabled={readOnly} />
                     <span>Organización de Ferias</span>
                 </label>
                 <label className="flex items-center space-x-2">
-                    <input type="checkbox" checked={(formData.servicios_ofrecidos as any)?.eventos || false} onChange={e => handleJsonChange('servicios_ofrecidos', 'eventos', e.target.checked)} disabled={readOnly} />
+                    <input type="checkbox" checked={!!(formData.servicios_ofrecidos as Record<string, unknown>)?.eventos} onChange={e => handleJsonChange('servicios_ofrecidos', 'eventos', e.target.checked)} disabled={readOnly} />
                     <span>Organización de Eventos</span>
                 </label>
                 <label className="flex items-center space-x-2">
-                    <input type="checkbox" checked={(formData.servicios_ofrecidos as any)?.convenciones || false} onChange={e => handleJsonChange('servicios_ofrecidos', 'convenciones', e.target.checked)} disabled={readOnly} />
+                    <input type="checkbox" checked={!!(formData.servicios_ofrecidos as Record<string, unknown>)?.convenciones} onChange={e => handleJsonChange('servicios_ofrecidos', 'convenciones', e.target.checked)} disabled={readOnly} />
                     <span>Organización de Convenciones</span>
                 </label>
                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" checked={(formData.servicios_ofrecidos as any)?.conciertos || false} onChange={e => handleJsonChange('servicios_ofrecidos', 'conciertos', e.target.checked)} disabled={readOnly} />
+                    <input type="checkbox" checked={!!(formData.servicios_ofrecidos as Record<string, unknown>)?.conciertos} onChange={e => handleJsonChange('servicios_ofrecidos', 'conciertos', e.target.checked)} disabled={readOnly} />
                     <span>Organización de Conciertos</span>
                 </label>
-                <input type="text" value={(formData.servicios_ofrecidos as any)?.otro || ''} onChange={e => handleJsonChange('servicios_ofrecidos', 'otro', e.target.value)} placeholder="Otro, ¿cuál?" className="w-full mt-2 px-3 py-2 border rounded-md" disabled={readOnly} />
+                <input type="text" value={String((formData.servicios_ofrecidos as Record<string, unknown>)?.otro || '')} onChange={e => handleJsonChange('servicios_ofrecidos', 'otro', e.target.value)} placeholder="Otro, ¿cuál?" className="w-full mt-2 px-3 py-2 border rounded-md" disabled={readOnly} />
             </div>
         </div>
       </div>
 
-      {/* Seccion 4: Necesidades */}
       <div className="space-y-4">
         <h3 className="text-xl font-semibold text-gray-700">4. Necesidades del Operador</h3>
         <textarea name="necesidades_fortalecimiento" value={formData.necesidades_fortalecimiento} onChange={handleChange} placeholder="¿En qué temas les gustaría profundizar?" className="w-full px-3 py-2 border rounded-md" rows={4} disabled={readOnly}></textarea>

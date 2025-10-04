@@ -12,7 +12,7 @@ import {
     getGuiaCaracterizacionByPrestadorId, createGuiaCaracterizacion, updateGuiaCaracterizacion, CaracterizacionGuiaTuristico
 } from '@/services/api';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 interface AdminPrestador {
   id: number;
@@ -131,7 +131,7 @@ export default function PrestadorManager() {
     }
   };
 
-  const handleAgroFormSubmit = async (formData: any) => {
+  const handleAgroFormSubmit = async (formData: Partial<CaracterizacionAgroturismo>) => {
     if (!selectedPrestador || isReadOnly) return;
     try {
       const dataToSubmit = { ...formData, prestador: selectedPrestador.id };

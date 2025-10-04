@@ -1,22 +1,25 @@
 from .sargento_base_graph import SargentoGraphBuilder
 from tools.herramientas_prestador import get_prestador_soldiers
-from typing import Any
 
-def get_gestion_prestador_sargento_builder():
+def get_gestion_prestador_sargento_graph():
     """
-    Devuelve una función (builder) que puede construir el agente sargento.
-    Sigue el patrón factory/builder.
+    Construye y devuelve el agente Sargento de Gestión de Prestadores compilado.
+
+    Este sargento recibe misiones de su teniente relacionadas con la gestión
+    de perfiles de prestadores de servicios turísticos. Utiliza a su escuadra
+    de soldados para crear perfiles, actualizar datos, gestionar galerías,
+    y manejar el estado de aprobación.
     """
-    def build_sargento_agent():
-        """Construye el grafo del Sargento."""
-        # El Sargento recluta a su escuadra de soldados especialistas
-        squad = get_prestador_soldiers()
+    # 1. Reclutar la escuadra de soldados especialistas
+    squad = get_prestador_soldiers()
 
-        # Construye el grafo de mando usando la plantilla estandarizada
-        builder = SargentoGraphBuilder(squad, squad_name="Gestión de Prestadores")
-        return builder.build_graph()
+    # 2. Usar el constructor estandarizado para crear el agente
+    builder = SargentoGraphBuilder(squad, squad_name="Gestión de Prestadores")
 
-    print("✅ Doctrina aplicada: Sargento de Gestión de Prestadores listo para el despliegue.")
+    # 3. Construir y compilar el grafo
+    sargento_agent = builder.build_graph()
 
-    # Devuelve la función constructora, no el agente compilado.
-    return build_sargento_agent
+    print("✅ Doctrina aplicada: Sargento de Gestión de Prestadores compilado y listo.")
+
+    # 4. Devolver el agente listo para ser usado por el Teniente
+    return sargento_agent

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, FormEvent } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import {
   getConsejosLocales,
   createConsejoLocal,
@@ -10,7 +9,7 @@ import {
   ConsejoLocal,
   IntegranteConsejo,
 } from '@/services/api';
-import { FiPlus, FiEdit, FiTrash2, FiUsers, FiX } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiX } from 'react-icons/fi';
 
 // Formulario Modal para Consejo Local
 const ConsejoForm = ({
@@ -18,7 +17,7 @@ const ConsejoForm = ({
   onCancel,
   initialData,
 }: {
-  onSubmit: (data: any) => void;
+  onSubmit: (data: FormData) => void;
   onCancel: () => void;
   initialData?: Partial<ConsejoLocal> | null;
 }) => {
@@ -60,9 +59,12 @@ const ConsejoForm = ({
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     const data = new FormData();
-    Object.keys(formData).forEach(key => {
+    (Object.keys(formData) as Array<keyof ConsejoLocal>).forEach(key => {
         if (key !== 'integrantes' && key !== 'plan_accion_adjunto') {
-            data.append(key, (formData as any)[key]);
+            const value = formData[key];
+            if (value !== null && value !== undefined) {
+              data.append(key, String(value));
+            }
         }
     });
     data.append('integrantes', JSON.stringify(integrantes));
@@ -77,7 +79,13 @@ const ConsejoForm = ({
       <h2 className="text-xl font-bold">{initialData?.id ? 'Editar' : 'Crear'} Consejo Local</h2>
       <input name="municipio" value={formData.municipio || ''} onChange={handleChange} placeholder="Municipio" className="input w-full" required />
 
-      <FormSection title="Integrantes del Consejo">
+      <div>
+        <label htmlFor="plan_accion_adjunto" className="block text-sm font-medium text-gray-700">Plan de Acción (PDF)</label>
+        <input id="plan_accion_adjunto" type="file" accept=".pdf" onChange={(e) => setPlanFile(e.target.files ? e.target.files[0] : null)} className="input w-full" />
+      </div>
+
+      <FormSection>
+        <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Integrantes del Consejo</h3>
         {integrantes.map((integrante, index) => (
           <div key={index} className="p-4 border rounded-md relative">
             <button type="button" onClick={() => removeIntegrante(index)} className="absolute top-2 right-2 text-red-500"><FiX /></button>
@@ -96,27 +104,24 @@ const ConsejoForm = ({
   );
 };
 
-const FormSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+const FormSection: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <div className="p-4 border-t">{children}</div>
 );
 
 // Componente Principal
 export default function ConsejosManager() {
   const [consejos, setConsejos] = useState<ConsejoLocal[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingConsejo, setEditingConsejo] = useState<ConsejoLocal | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchConsejos = useCallback(async () => {
-    setIsLoading(true);
     try {
       const data = await getConsejosLocales();
       setConsejos(data);
-    } catch (err) {
+    } catch {
+      console.error('No se pudo cargar la lista de consejos locales.');
       setError('No se pudo cargar la lista de consejos locales.');
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
@@ -134,7 +139,7 @@ export default function ConsejosManager() {
     setEditingConsejo(null);
   };
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: FormData) => {
     try {
       if (editingConsejo) {
         await updateConsejoLocal(editingConsejo.id, data);
@@ -143,7 +148,8 @@ export default function ConsejosManager() {
       }
       fetchConsejos();
       handleCloseModal();
-    } catch (err) {
+    } catch {
+      console.error('Error al guardar el consejo local.');
       setError('Error al guardar el consejo local.');
     }
   };
@@ -153,7 +159,8 @@ export default function ConsejosManager() {
       try {
         await deleteConsejoLocal(id);
         fetchConsejos();
-      } catch (err) {
+      } catch {
+        console.error('Error al eliminar el consejo.');
         setError('Error al eliminar el consejo.');
       }
     }
@@ -165,6 +172,8 @@ export default function ConsejosManager() {
         <h2 className="text-2xl font-bold">Gestión de Consejos Locales de Turismo</h2>
         <button onClick={() => handleOpenModal()} className="btn-primary flex items-center gap-2"><FiPlus /> Crear Consejo</button>
       </div>
+
+      {error && <p className="text-red-500 bg-red-100 p-3 rounded-md">{error}</p>}
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">

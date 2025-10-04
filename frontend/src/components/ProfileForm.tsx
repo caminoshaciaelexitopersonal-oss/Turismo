@@ -15,7 +15,7 @@ import {
 import { FiUser, FiPhone, FiMail, FiMapPin, FiLink, FiTag, FiCheckCircle, FiAlertCircle, FiSave, FiLoader, FiFileText } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 // --- Type Definitions ---
 interface Image {
@@ -171,7 +171,7 @@ export default function ProfileForm() {
     setIsAgroModalOpen(true);
   };
 
-  const handleAgroSubmit = async (formData: any) => {
+  const handleAgroSubmit = async (formData: CaracterizacionAgroturismo) => {
     if (!profile) return;
     try {
       const dataToSubmit = { ...formData, prestador: profile.id };

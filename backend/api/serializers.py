@@ -2,128 +2,128 @@ from dj_rest_auth.registration.serializers import RegisterSerializer
 from rest_framework import serializers
 from .models import (
     CustomUser, PrestadorServicio, ImagenGaleria, ImagenArtesano, DocumentoLegalizacion, Publicacion,
-    ConsejoConsultivo, AtractivoTuristico, ImagenAtractivo, ElementoGuardado, ContentType,
+    ConsejoConsultivo, AtractivoTuristico, ImagenAtractivo, RutaTuristica, ImagenRutaTuristica, ElementoGuardado, ContentType,
     CategoriaPrestador, Video, ContenidoMunicipio, AgentTask, SiteConfiguration, MenuItem,
-    HomePageComponent, AuditLog, PaginaInstitucional, HechoHistorico, Artesano, RubroArtesano,
-    Resena, Sugerencia, CaracterizacionEmpresaEventos, CaracterizacionAgroturismo, CaracterizacionGuiaTuristico,
-    CaracterizacionArtesano, ConsejoLocal, IntegranteConsejo, DiagnosticoRutaTuristica
+    HomePageComponent, AuditLog, PaginaInstitucional, ImagenPaginaInstitucional, HechoHistorico, Artesano, RubroArtesano,
+    Resena, Sugerencia, ScoringRule, Notificacion,
+    Formulario, Pregunta, OpcionRespuesta, RespuestaUsuario,
+    PlantillaVerificacion,
+    ItemVerificacion,
+    Verificacion,
+    RespuestaItemVerificacion,
+    AsistenciaCapacitacion
 )
+from django.db import transaction
+
+# --- Serializadores para Formularios Dinámicos ---
+
+class OpcionRespuestaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OpcionRespuesta
+        fields = ['id', 'texto_opcion', 'orden']
 
 
-class DiagnosticoRutaTuristicaSerializer(serializers.ModelSerializer):
-    elaborado_por_username = serializers.CharField(source='elaborado_por.username', read_only=True)
+class PreguntaSerializer(serializers.ModelSerializer):
+    opciones = OpcionRespuestaSerializer(many=True, read_only=True)
 
     class Meta:
-        model = DiagnosticoRutaTuristica
-        fields = '__all__'
-        read_only_fields = ('elaborado_por',)
+        model = Pregunta
+        fields = ['id', 'texto_pregunta', 'tipo_pregunta', 'es_requerida', 'orden', 'ayuda', 'slug', 'opciones']
 
 
-class IntegranteConsejoSerializer(serializers.ModelSerializer):
+class FormularioListSerializer(serializers.ModelSerializer):
     class Meta:
-        model = IntegranteConsejo
-        fields = ['id', 'nombre_completo', 'celular', 'correo', 'sector_representa', 'genero', 'grupo_atencion_especial', 'tipo_discapacidad']
+        model = Formulario
+        fields = ['id', 'titulo', 'descripcion', 'es_publico']
 
 
-class ConsejoLocalSerializer(serializers.ModelSerializer):
-    integrantes = IntegranteConsejoSerializer(many=True)
+class FormularioDetailSerializer(serializers.ModelSerializer):
+    preguntas = PreguntaSerializer(many=True, read_only=True)
 
     class Meta:
-        model = ConsejoLocal
-        fields = ['id', 'municipio', 'acto_administrativo', 'frecuencia_reunion', 'frecuencia_reunion_otro', 'tiene_matriz_compromisos', 'tiene_plan_accion', 'plan_accion_adjunto', 'integrantes']
-
-    def create(self, validated_data):
-        integrantes_data = validated_data.pop('integrantes')
-        consejo = ConsejoLocal.objects.create(**validated_data)
-        for integrante_data in integrantes_data:
-            IntegranteConsejo.objects.create(consejo=consejo, **integrante_data)
-        return consejo
-
-    def update(self, instance, validated_data):
-        integrantes_data = validated_data.pop('integrantes', None)
-        instance = super().update(instance, validated_data)
-
-        if integrantes_data is not None:
-            instance.integrantes.all().delete()
-            for integrante_data in integrantes_data:
-                IntegranteConsejo.objects.create(consejo=instance, **integrante_data)
-
-        return instance
+        model = Formulario
+        fields = ['id', 'titulo', 'descripcion', 'es_publico', 'preguntas']
 
 
-class CaracterizacionArtesanoSerializer(serializers.ModelSerializer):
-    """
-    Serializador para el modelo de caracterización de artesanos.
-    """
+class RespuestaUsuarioSerializer(serializers.ModelSerializer):
+    pregunta_texto = serializers.CharField(source='pregunta.texto_pregunta', read_only=True)
+    usuario_username = serializers.CharField(source='usuario.username', read_only=True)
+
     class Meta:
-        model = CaracterizacionArtesano
-        fields = '__all__'
+        model = RespuestaUsuario
+        fields = ['id', 'pregunta', 'pregunta_texto', 'usuario_username', 'respuesta', 'fecha_respuesta']
 
 
-class CaracterizacionGuiaTuristicoSerializer(serializers.ModelSerializer):
-    """
-    Serializador para el modelo de caracterización de guías turísticos.
-    """
-    class Meta:
-        model = CaracterizacionGuiaTuristico
-        fields = '__all__'
+class RespuestaUsuarioCreateSerializer(serializers.Serializer):
+    respuestas = serializers.DictField(
+        child=serializers.JSONField(),
+        help_text="Diccionario con `pregunta_id` como clave y la respuesta como valor."
+    )
+    formulario_id = serializers.IntegerField()
 
+    def validate(self, data):
+        formulario_id = data.get('formulario_id')
+        respuestas_data = data.get('respuestas', {})
+        try:
+            formulario = Formulario.objects.prefetch_related('preguntas').get(id=formulario_id)
+        except Formulario.DoesNotExist:
+            raise serializers.ValidationError({"formulario_id": "El formulario especificado no existe."})
+        preguntas_requeridas = {p.id: p for p in formulario.preguntas.filter(es_requerida=True)}
+        for pregunta_id, pregunta in preguntas_requeridas.items():
+            respuesta = respuestas_data.get(str(pregunta_id))
+            if respuesta is None or (isinstance(respuesta, str) and not respuesta.strip()) or (isinstance(respuesta, list) and not respuesta):
+                raise serializers.ValidationError({
+                    "respuestas": f"Falta una respuesta para la pregunta requerida: '{pregunta.texto_pregunta}' (ID: {pregunta_id})."
+                })
+        data['formulario'] = formulario
+        return data
 
-class CaracterizacionEmpresaEventosSerializer(serializers.ModelSerializer):
-    """
-    Serializador para el modelo de caracterización de empresas de eventos.
-    """
-    class Meta:
-        model = CaracterizacionEmpresaEventos
-        fields = '__all__'
-
-
-class CaracterizacionAgroturismoSerializer(serializers.ModelSerializer):
-    """
-    Serializador para el modelo de caracterización de agroturismo.
-    """
-    class Meta:
-        model = CaracterizacionAgroturismo
-        fields = '__all__'
+    @transaction.atomic
+    def save(self, **kwargs):
+        formulario = self.validated_data['formulario']
+        respuestas_data = self.validated_data['respuestas']
+        usuario = self.context['request'].user
+        preguntas_del_formulario = {str(p.id): p for p in formulario.preguntas.all()}
+        for pregunta_id_str, respuesta_valor in respuestas_data.items():
+            if pregunta_id_str in preguntas_del_formulario:
+                pregunta = preguntas_del_formulario[pregunta_id_str]
+                respuesta_json = respuesta_valor
+                RespuestaUsuario.objects.update_or_create(
+                    usuario=usuario,
+                    pregunta=pregunta,
+                    defaults={'respuesta': respuesta_json}
+                )
+        return {"status": "success", "message": "Respuestas guardadas correctamente."}
 
 
 class HechoHistoricoSerializer(serializers.ModelSerializer):
-    """
-    Serializador para el modelo HechoHistorico.
-    """
     imagen_url = serializers.ImageField(source='imagen', read_only=True)
-
     class Meta:
         model = HechoHistorico
-        fields = [
-            'id', 'ano', 'titulo', 'descripcion', 'imagen',
-            'imagen_url', 'es_publicado'
-        ]
-        extra_kwargs = {
-            'imagen': {'write_only': True, 'required': False}
-        }
+        fields = ['id', 'ano', 'titulo', 'descripcion', 'imagen', 'imagen_url', 'es_publicado']
+        extra_kwargs = {'imagen': {'write_only': True, 'required': False}}
 
 
 class GaleriaItemSerializer(serializers.Serializer):
-    """
-    Serializador genérico para unificar diferentes tipos de media (imágenes, videos)
-    en una sola respuesta para la galería.
-    """
     id = serializers.CharField()
-    tipo = serializers.CharField() # 'imagen' o 'video'
+    tipo = serializers.CharField()
     url = serializers.URLField()
     thumbnail_url = serializers.URLField()
     titulo = serializers.CharField()
     descripcion = serializers.CharField(required=False, allow_blank=True)
 
 
+class ImagenPaginaInstitucionalSerializer(serializers.ModelSerializer):
+    imagen_url = serializers.ImageField(source='imagen', read_only=True)
+    class Meta:
+        model = ImagenPaginaInstitucional
+        fields = ['id', 'imagen_url', 'alt_text', 'orden']
+
+
 class PaginaInstitucionalSerializer(serializers.ModelSerializer):
-    """
-    Serializador para el modelo PaginaInstitucional.
-    Maneja la carga de imágenes y muestra los datos necesarios.
-    """
     banner_url = serializers.ImageField(source='banner', read_only=True)
     actualizado_por_username = serializers.CharField(source='actualizado_por.username', read_only=True)
+    galeria_imagenes = ImagenPaginaInstitucionalSerializer(many=True, read_only=True, source='galeria_imagenes')
 
     class Meta:
         model = PaginaInstitucional
@@ -131,100 +131,71 @@ class PaginaInstitucionalSerializer(serializers.ModelSerializer):
             'id', 'nombre', 'slug', 'titulo_banner', 'subtitulo_banner',
             'banner', 'banner_url', 'contenido_principal', 'programas_proyectos',
             'estrategias_apoyo', 'politicas_locales', 'convenios_asociaciones',
-            'informes_resultados', 'actualizado_por_username', 'fecha_actualizacion'
+            'informes_resultados', 'actualizado_por_username', 'fecha_actualizacion',
+            'galeria_imagenes'
         ]
-        # Hacemos que el campo de carga 'banner' sea de solo escritura y no obligatorio en actualizaciones
-        extra_kwargs = {
-            'banner': {'write_only': True, 'required': False}
-        }
+        extra_kwargs = {'banner': {'write_only': True, 'required': False}}
 
 
 class CustomUserSerializer(serializers.ModelSerializer):
-    """
-    Serializador para los detalles del usuario.
-    Asegura que el campo 'role' se incluya en la respuesta de la API.
-    """
     class Meta:
         model = CustomUser
         fields = ('pk', 'username', 'email', 'role')
 
+class UsuarioListSerializer(serializers.ModelSerializer):
+    nombre_display = serializers.SerializerMethodField()
+    rol_display = serializers.CharField(source='get_role_display', read_only=True)
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'username', 'nombre_display', 'role', 'rol_display']
+    def get_nombre_display(self, obj):
+        if hasattr(obj, 'perfil_prestador') and obj.perfil_prestador.nombre_negocio:
+            return obj.perfil_prestador.nombre_negocio
+        return obj.get_full_name() or obj.username
+
+
 class AdminUserSerializer(serializers.ModelSerializer):
-    """
-    Serializador para que un Administrador gestione usuarios.
-    Permite crear, ver, actualizar y eliminar usuarios, incluyendo su rol.
-    La contraseña es de solo escritura y no es obligatoria en las actualizaciones.
-    """
     class Meta:
         model = CustomUser
         fields = ('id', 'username', 'email', 'role', 'password')
-        extra_kwargs = {
-            'password': {'write_only': True, 'required': False}
-        }
+        extra_kwargs = {'password': {'write_only': True, 'required': False}}
 
     def create(self, validated_data):
-        """
-        Crea un nuevo usuario y hashea la contraseña.
-        """
         user = CustomUser.objects.create_user(**validated_data)
         return user
 
     def update(self, instance, validated_data):
-        """
-        Actualiza un usuario. Si se proporciona una nueva contraseña, la hashea.
-        """
-        # Elimina la contraseña del dict si está presente, para manejarla por separado.
         password = validated_data.pop('password', None)
-
-        # Actualiza el resto de los campos.
         instance = super().update(instance, validated_data)
-
         if password:
             instance.set_password(password)
             instance.save()
-
         return instance
 
 
-# --- Serializadores de Sugerencias ---
-
 class SugerenciaSerializer(serializers.ModelSerializer):
-    """
-    Serializador para la creación pública de sugerencias.
-    """
     class Meta:
         model = Sugerencia
         fields = ['nombre_remitente', 'email_remitente', 'tipo_mensaje', 'mensaje']
 
 
 class SugerenciaAdminSerializer(serializers.ModelSerializer):
-    """
-    Serializador para la gestión de sugerencias en el panel de administración.
-    """
     class Meta:
         model = Sugerencia
         fields = '__all__'
 
 
 class FeedbackProveedorSerializer(serializers.ModelSerializer):
-    """
-    Serializador para que un proveedor (prestador o artesano) vea el
-    feedback dirigido a él, de forma anónima.
-    """
     class Meta:
         model = Sugerencia
         fields = ['id', 'tipo_mensaje', 'mensaje', 'fecha_envio', 'estado']
 
 
 class FelicitacionPublicaSerializer(serializers.ModelSerializer):
-    """
-    Serializador para las felicitaciones públicas. Muestra el mensaje y el remitente.
-    """
     remitente = serializers.SerializerMethodField()
-
     class Meta:
         model = Sugerencia
         fields = ['id', 'mensaje', 'remitente']
-
     def get_remitente(self, obj):
         if obj.usuario:
             return obj.usuario.get_full_name() or obj.usuario.username
@@ -232,28 +203,18 @@ class FelicitacionPublicaSerializer(serializers.ModelSerializer):
 
 
 class VideoSerializer(serializers.ModelSerializer):
-    """
-    Serializador para los videos.
-    """
     class Meta:
         model = Video
         fields = ['id', 'titulo', 'descripcion', 'url_youtube', 'fecha_publicacion']
 
 
 class ConsejoConsultivoSerializer(serializers.ModelSerializer):
-    """
-    Serializador para las publicaciones del Consejo Consultivo.
-    """
     class Meta:
         model = ConsejoConsultivo
         fields = ['id', 'titulo', 'contenido', 'fecha_publicacion', 'documento_adjunto']
 
 
 class LocationSerializer(serializers.Serializer):
-    """
-    Serializador genérico para representar cualquier punto geolocalizado en el mapa.
-    No está atado a un modelo, lo que permite combinar diferentes tipos de ubicaciones.
-    """
     id = serializers.CharField()
     nombre = serializers.CharField()
     lat = serializers.FloatField()
@@ -269,55 +230,53 @@ class ImagenAtractivoSerializer(serializers.ModelSerializer):
 
 
 class AtractivoTuristicoListSerializer(serializers.ModelSerializer):
-    """
-    Serializador para la lista pública de atractivos turísticos.
-    """
-    imagen_principal = serializers.SerializerMethodField()
-
+    imagen_principal_url = serializers.ImageField(source='imagen_principal', read_only=True)
     class Meta:
         model = AtractivoTuristico
-        fields = ['id', 'nombre', 'slug', 'categoria_color', 'imagen_principal']
-
-    def get_imagen_principal(self, obj):
-        # Devuelve la URL de la primera imagen de la galería, o None si no hay.
-        primera_imagen = obj.imagenes.first()
-        if primera_imagen:
-            request = self.context.get('request')
-            return request.build_absolute_uri(primera_imagen.imagen.url)
-        return None
+        fields = ['id', 'nombre', 'slug', 'descripcion', 'categoria_color', 'imagen_principal_url']
 
 
 class AtractivoTuristicoDetailSerializer(serializers.ModelSerializer):
-    """
-    Serializador para el detalle público de un atractivo turístico.
-    """
     imagenes = ImagenAtractivoSerializer(many=True, read_only=True)
     categoria_color_display = serializers.CharField(source='get_categoria_color_display', read_only=True)
-
+    imagen_principal_url = serializers.ImageField(source='imagen_principal', read_only=True)
+    autor_username = serializers.CharField(source='autor.username', read_only=True, default=None)
     class Meta:
         model = AtractivoTuristico
         fields = [
             'id', 'nombre', 'slug', 'descripcion', 'como_llegar',
-            'ubicacion_mapa', 'categoria_color', 'categoria_color_display', 'imagenes'
+            'latitud', 'longitud', 'categoria_color', 'categoria_color_display',
+            'imagen_principal_url', 'imagenes', 'horario_funcionamiento', 'tarifas',
+            'recomendaciones', 'accesibilidad', 'informacion_contacto', 'autor_username'
         ]
+
+class AtractivoTuristicoWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AtractivoTuristico
+        fields = [
+            'nombre', 'slug', 'descripcion', 'como_llegar', 'ubicacion_mapa',
+            'categoria_color', 'imagen_principal', 'horario_funcionamiento',
+            'tarifas', 'recomendaciones', 'accesibilidad', 'informacion_contacto',
+            'es_publicado'
+        ]
+        extra_kwargs = {
+            'imagen_principal': {'required': False},
+            'es_publicado': {'required': False},
+        }
+    def create(self, validated_data):
+        validated_data['autor'] = self.context['request'].user
+        return super().create(validated_data)
 
 
 class PublicacionListSerializer(serializers.ModelSerializer):
-    """
-    Serializador para listar las publicaciones para el público.
-    Muestra una versión resumida de la información.
-    """
     class Meta:
         model = Publicacion
         fields = ['id', 'tipo', 'subcategoria_evento', 'titulo', 'slug', 'imagen_principal', 'fecha_evento_inicio', 'fecha_evento_fin', 'fecha_publicacion']
 
+
 class PublicacionDetailSerializer(serializers.ModelSerializer):
-    """
-    Serializador para ver el detalle completo de una publicación.
-    """
     autor_nombre = serializers.CharField(source='autor.get_full_name', read_only=True)
     subcategoria_evento_display = serializers.CharField(source='get_subcategoria_evento_display', read_only=True)
-
     class Meta:
         model = Publicacion
         fields = [
@@ -328,36 +287,27 @@ class PublicacionDetailSerializer(serializers.ModelSerializer):
 
 
 class AdminPublicacionSerializer(serializers.ModelSerializer):
-    """
-    Serializador para la gestión de Publicaciones en el panel de administración.
-    Expone todos los campos, incluido 'es_publicado' para la aprobación.
-    """
     autor_nombre = serializers.CharField(source='autor.username', read_only=True)
-
+    estado_display = serializers.CharField(source='get_estado_display', read_only=True)
     class Meta:
         model = Publicacion
         fields = [
             'id', 'tipo', 'titulo', 'slug', 'contenido', 'imagen_principal',
-            'autor', 'autor_nombre', 'es_publicado',
+            'autor', 'autor_nombre', 'estado', 'estado_display',
             'fecha_evento_inicio', 'fecha_evento_fin', 'fecha_publicacion',
             'subcategoria_evento',
         ]
-        read_only_fields = ['autor_nombre']
+        read_only_fields = ['autor_nombre', 'estado_display']
 
 
 class ImagenGaleriaSerializer(serializers.ModelSerializer):
-    """
-    Serializador para subir y listar imágenes de la galería de un prestador.
-    """
     class Meta:
         model = ImagenGaleria
         fields = ['id', 'imagen', 'alt_text', 'prestador']
         read_only_fields = ['prestador']
 
+
 class ImagenArtesanoSerializer(serializers.ModelSerializer):
-    """
-    Serializador para subir y listar imágenes de la galería de un artesano.
-    """
     class Meta:
         model = ImagenArtesano
         fields = ['id', 'imagen', 'alt_text', 'artesano']
@@ -365,9 +315,6 @@ class ImagenArtesanoSerializer(serializers.ModelSerializer):
 
 
 class DocumentoLegalizacionSerializer(serializers.ModelSerializer):
-    """
-    Serializador para subir y listar documentos de legalización de un prestador.
-    """
     class Meta:
         model = DocumentoLegalizacion
         fields = ['id', 'documento', 'nombre_documento', 'fecha_subida', 'prestador']
@@ -375,90 +322,118 @@ class DocumentoLegalizacionSerializer(serializers.ModelSerializer):
 
 
 class CategoriaPrestadorSerializer(serializers.ModelSerializer):
-    """
-    Serializador para las categorías de los prestadores de servicios.
-    """
     class Meta:
         model = CategoriaPrestador
         fields = ['id', 'nombre', 'slug']
 
 
 class PrestadorServicioPublicListSerializer(serializers.ModelSerializer):
-    """
-    Serializador para la vista pública de la lista de prestadores de servicios.
-    """
-    categoria_nombre = serializers.CharField(source='categoria.nombre', read_only=True)
-    imagen_principal = serializers.SerializerMethodField()
+    categoria_nombre = serializers.SerializerMethodField()
+    imagen_principal = serializers.ImageField(source='foto_principal', read_only=True)
 
     class Meta:
         model = PrestadorServicio
-        fields = ['id', 'nombre_negocio', 'categoria_nombre', 'imagen_principal']
+        fields = [
+            'id',
+            'nombre_negocio',
+            'categoria_nombre',
+            'imagen_principal',
+            'descripcion',
+            'telefono',
+            'email_contacto',
+            'red_social_facebook',
+            'red_social_instagram',
+            'red_social_tiktok',
+            'red_social_whatsapp',
+            'latitud',
+            'longitud',
+        ]
 
-    def get_imagen_principal(self, obj):
-        primera_imagen = obj.galeria_imagenes.first()
-        if primera_imagen:
-            request = self.context.get('request')
-            return request.build_absolute_uri(primera_imagen.imagen.url)
-        return None
+    def get_categoria_nombre(self, obj):
+        return obj.categoria.nombre if obj.categoria else None
 
 
 class RubroArtesanoSerializer(serializers.ModelSerializer):
-    """
-    Serializador para los rubros de los artesanos.
-    """
     class Meta:
         model = RubroArtesano
         fields = ['id', 'nombre', 'slug']
 
 
 class ArtesanoPublicListSerializer(serializers.ModelSerializer):
-    """
-    Serializador para la vista pública de la lista de artesanos.
-    """
-    rubro_nombre = serializers.CharField(source='rubro.nombre', read_only=True)
+    rubro_nombre = serializers.SerializerMethodField()
     foto_url = serializers.ImageField(source='foto_principal', read_only=True)
-
     class Meta:
         model = Artesano
-        fields = ['id', 'nombre_taller', 'nombre_artesano', 'rubro_nombre', 'foto_url']
+        fields = [
+            'id',
+            'nombre_taller',
+            'nombre_artesano',
+            'rubro_nombre',
+            'foto_url',
+            'descripcion',
+            'telefono',
+            'email_contacto',
+            'red_social_facebook',
+            'red_social_instagram',
+            'red_social_tiktok',
+            'red_social_whatsapp',
+            'latitud',
+            'longitud',
+        ]
+
+    def get_rubro_nombre(self, obj):
+        return obj.rubro.nombre if obj.rubro else None
+
 
 class ArtesanoPublicDetailSerializer(serializers.ModelSerializer):
-    """
-    Serializador para el detalle público de un artesano.
-    """
     rubro = RubroArtesanoSerializer(read_only=True)
     foto_url = serializers.ImageField(source='foto_principal', read_only=True)
     galeria_imagenes = ImagenArtesanoSerializer(many=True, read_only=True)
-
     class Meta:
         model = Artesano
         fields = [
             'id', 'nombre_taller', 'nombre_artesano', 'descripcion', 'telefono', 'email_contacto',
             'red_social_facebook', 'red_social_instagram', 'red_social_tiktok', 'red_social_whatsapp',
-            'ubicacion_taller', 'rubro', 'foto_url', 'galeria_imagenes'
+            'latitud', 'longitud', 'rubro', 'foto_url', 'galeria_imagenes'
         ]
+
+
+class ImagenRutaTuristicaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ImagenRutaTuristica
+        fields = ['id', 'imagen', 'alt_text']
+
+
+class RutaTuristicaListSerializer(serializers.ModelSerializer):
+    imagen_principal_url = serializers.ImageField(source='imagen_principal', read_only=True)
+
+    class Meta:
+        model = RutaTuristica
+        fields = ['id', 'nombre', 'slug', 'descripcion', 'imagen_principal_url']
+
+
+class RutaTuristicaDetailSerializer(RutaTuristicaListSerializer):
+    imagenes = ImagenRutaTuristicaSerializer(many=True, read_only=True)
+    atractivos = AtractivoTuristicoListSerializer(many=True, read_only=True)
+    prestadores = PrestadorServicioPublicListSerializer(many=True, read_only=True)
+
+    class Meta(RutaTuristicaListSerializer.Meta):
+        fields = RutaTuristicaListSerializer.Meta.fields + ['imagenes', 'atractivos', 'prestadores']
 
 
 class PrestadorServicioPublicDetailSerializer(serializers.ModelSerializer):
-    """
-    Serializador para el detalle público de un prestador de servicios.
-    """
     categoria = CategoriaPrestadorSerializer(read_only=True)
     galeria_imagenes = ImagenGaleriaSerializer(many=True, read_only=True)
-
     class Meta:
         model = PrestadorServicio
-        # Listamos explícitamente los campos para asegurar que todos los datos públicos se incluyan.
         fields = [
             'id', 'nombre_negocio', 'descripcion', 'telefono', 'email_contacto',
             'red_social_facebook', 'red_social_instagram', 'red_social_tiktok', 'red_social_whatsapp',
-            'ubicacion_mapa', 'promociones_ofertas', 'categoria', 'galeria_imagenes'
+            'latitud', 'longitud', 'promociones_ofertas', 'categoria', 'galeria_imagenes'
         ]
 
+
 class ArtesanoUpdateSerializer(serializers.ModelSerializer):
-    """
-    Serializador para que un artesano actualice su propio perfil.
-    """
     class Meta:
         model = Artesano
         fields = [
@@ -466,34 +441,28 @@ class ArtesanoUpdateSerializer(serializers.ModelSerializer):
             'foto_principal', 'red_social_facebook', 'red_social_instagram', 'red_social_tiktok', 'red_social_whatsapp',
             'ubicacion_taller'
         ]
-        extra_kwargs = {
-            'foto_principal': {'required': False}
-        }
+        extra_kwargs = {'foto_principal': {'required': False}}
 
 
 class ArtesanoSerializer(serializers.ModelSerializer):
-    """
-    Serializador completo para que un artesano vea su perfil.
-    """
     rubro_nombre = serializers.CharField(source='rubro.nombre', read_only=True)
     foto_url = serializers.ImageField(source='foto_principal', read_only=True)
     galeria_imagenes = ImagenArtesanoSerializer(many=True, read_only=True)
-
     class Meta:
         model = Artesano
         fields = [
             'nombre_taller', 'nombre_artesano', 'descripcion', 'telefono', 'email_contacto',
             'foto_principal', 'foto_url', 'red_social_facebook', 'red_social_instagram', 'red_social_tiktok', 'red_social_whatsapp',
-            'ubicacion_taller', 'aprobado', 'rubro_nombre', 'galeria_imagenes'
+            'ubicacion_taller', 'aprobado', 'rubro_nombre', 'galeria_imagenes',
+            'puntuacion_capacitacion', 'puntuacion_reseñas', 'puntuacion_formularios', 'puntuacion_total'
         ]
-        read_only_fields = ['aprobado', 'rubro_nombre', 'foto_url', 'galeria_imagenes']
+        read_only_fields = [
+            'aprobado', 'rubro_nombre', 'foto_url', 'galeria_imagenes',
+            'puntuacion_capacitacion', 'puntuacion_reseñas', 'puntuacion_formularios', 'puntuacion_total'
+        ]
 
 
 class PrestadorServicioUpdateSerializer(serializers.ModelSerializer):
-    """
-    Serializador para que un prestador actualice su perfil.
-    Solo incluye los campos que el usuario puede editar directamente.
-    """
     class Meta:
         model = PrestadorServicio
         fields = [
@@ -505,13 +474,9 @@ class PrestadorServicioUpdateSerializer(serializers.ModelSerializer):
 
 
 class PrestadorServicioSerializer(serializers.ModelSerializer):
-    """
-    Serializador para que un prestador vea y actualice su perfil.
-    """
     categoria_nombre = serializers.CharField(source='categoria.nombre', read_only=True)
     galeria_imagenes = ImagenGaleriaSerializer(many=True, read_only=True)
     documentos_legalizacion = DocumentoLegalizacionSerializer(many=True, read_only=True)
-
     class Meta:
         model = PrestadorServicio
         fields = [
@@ -521,53 +486,44 @@ class PrestadorServicioSerializer(serializers.ModelSerializer):
             'ubicacion_mapa', 'promociones_ofertas',
             'reporte_ocupacion_nacional', 'reporte_ocupacion_internacional',
             'categoria_nombre', 'aprobado',
-            'galeria_imagenes', 'documentos_legalizacion'
+            'galeria_imagenes', 'documentos_legalizacion',
+            'puntuacion_verificacion', 'puntuacion_capacitacion',
+            'puntuacion_reseñas', 'puntuacion_formularios', 'puntuacion_total'
         ]
-        read_only_fields = ['id', 'aprobado', 'categoria_nombre', 'galeria_imagenes', 'documentos_legalizacion']
+        read_only_fields = [
+            'id', 'aprobado', 'categoria_nombre', 'galeria_imagenes', 'documentos_legalizacion',
+            'puntuacion_verificacion', 'puntuacion_capacitacion',
+            'puntuacion_reseñas', 'puntuacion_formularios', 'puntuacion_total'
+        ]
 
 
 class TuristaRegisterSerializer(RegisterSerializer):
-    """
-    Serializador de registro simplificado para usuarios turistas.
-    Cuando un usuario se registra, automáticamente se le asigna el rol 'TURISTA'.
-    """
+    origen = serializers.ChoiceField(choices=CustomUser.Origen.choices, required=False)
+    pais_origen = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+    @transaction.atomic
     def save(self, request):
         user = super().save(request)
         user.role = CustomUser.Role.TURISTA
+        user.origen = self.validated_data.get('origen', None)
+        user.pais_origen = self.validated_data.get('pais_origen', None)
         user.save()
         return user
 
 
 class PrestadorRegisterSerializer(RegisterSerializer):
-    """
-    Serializador de registro para Prestadores de Servicios.
-    Cuando un usuario se registra por esta vía, se le asigna el rol 'PRESTADOR'
-    y se le crea un perfil de PrestadorServicio vacío.
-    """
-
     def save(self, request):
-        # El método save original crea el usuario. Lo llamamos primero.
         user = super().save(request)
-
-        # Asignamos el rol de PRESTADOR
         user.role = CustomUser.Role.PRESTADOR
         user.save()
-
-        # Creamos el perfil de Prestador de Servicio asociado
-        # Usamos el username como nombre de negocio temporal
         PrestadorServicio.objects.create(
             usuario=user,
             nombre_negocio=f"Perfil de {user.username}"
         )
-
         return user
 
 
 class ArtesanoRegisterSerializer(RegisterSerializer):
-    """
-    Serializador de registro para Artesanos.
-    Crea un usuario con el rol 'ARTESANO' y un perfil de Artesano asociado.
-    """
     def save(self, request):
         user = super().save(request)
         user.role = CustomUser.Role.ARTESANO
@@ -580,18 +536,29 @@ class ArtesanoRegisterSerializer(RegisterSerializer):
         return user
 
 
+class AgenciaEventosRegisterSerializer(RegisterSerializer):
+    def save(self, request):
+        user = super().save(request)
+        user.role = CustomUser.Role.AGENCIA_EVENTOS
+        user.save()
+        categoria_eventos, _ = CategoriaPrestador.objects.get_or_create(
+            slug='agencias-de-eventos',
+            defaults={'nombre': 'Agencias de Eventos'}
+        )
+        PrestadorServicio.objects.create(
+            usuario=user,
+            nombre_negocio=f"Agencia de {user.username}",
+            categoria=categoria_eventos
+        )
+        return user
+
+
 class ElementoGuardadoSerializer(serializers.ModelSerializer):
-    """
-    Serializador para mostrar los elementos guardados por un usuario.
-    Determina dinámicamente qué serializador usar para el objeto guardado.
-    """
     content_object = serializers.SerializerMethodField()
     content_type_name = serializers.CharField(source='content_type.model', read_only=True)
-
     class Meta:
         model = ElementoGuardado
         fields = ['id', 'fecha_guardado', 'object_id', 'content_type_name', 'content_object']
-
     def get_content_object(self, obj):
         if isinstance(obj.content_object, AtractivoTuristico):
             return AtractivoTuristicoListSerializer(obj.content_object, context=self.context).data
@@ -599,16 +566,12 @@ class ElementoGuardadoSerializer(serializers.ModelSerializer):
             return PublicacionListSerializer(obj.content_object, context=self.context).data
         return None
 
-class ElementoGuardadoCreateSerializer(serializers.ModelSerializer):
-    """
-    Serializador para que un usuario guarde un nuevo elemento favorito.
-    """
-    content_type = serializers.CharField()
 
+class ElementoGuardadoCreateSerializer(serializers.ModelSerializer):
+    content_type = serializers.CharField()
     class Meta:
         model = ElementoGuardado
         fields = ['content_type', 'object_id']
-
     def validate(self, data):
         content_type_str = data['content_type'].lower()
         model_map = {
@@ -616,19 +579,13 @@ class ElementoGuardadoCreateSerializer(serializers.ModelSerializer):
             'publicacion': Publicacion,
         }
         model = model_map.get(content_type_str)
-
         if not model:
             raise serializers.ValidationError("Tipo de contenido no válido.")
-
         if not model.objects.filter(pk=data['object_id']).exists():
             raise serializers.ValidationError("El objeto especificado no existe.")
-
         data['content_type'] = ContentType.objects.get_for_model(model)
         return data
-
     def create(self, validated_data):
-        # get_or_create para manejar la creación de forma idempotente.
-        # Si ya existe, simplemente lo devuelve.
         instance, _ = ElementoGuardado.objects.get_or_create(
             usuario=self.context['request'].user,
             content_type=validated_data['content_type'],
@@ -637,87 +594,61 @@ class ElementoGuardadoCreateSerializer(serializers.ModelSerializer):
         return instance
 
 
-class AdminArtesanoSerializer(serializers.ModelSerializer):
-    """
-    Serializador para que el administrador vea la lista de artesanos.
-    Incluye todos los campos relevantes para la moderación.
-    """
+class AdminArtesanoListSerializer(serializers.ModelSerializer):
     rubro_nombre = serializers.CharField(source='rubro.nombre', read_only=True)
     usuario_email = serializers.CharField(source='usuario.email', read_only=True)
-
     class Meta:
         model = Artesano
         fields = [
-            'id',
-            'nombre_taller',
-            'nombre_artesano',
-            'telefono',
-            'email_contacto',
-            'aprobado',
-            'fecha_creacion',
-            'rubro_nombre',
-            'usuario_email'
+            'id', 'nombre_taller', 'nombre_artesano', 'telefono', 'email_contacto',
+            'aprobado', 'fecha_creacion', 'rubro_nombre', 'usuario_email'
         ]
 
+class AdminArtesanoDetailSerializer(serializers.ModelSerializer):
+    usuario = CustomUserSerializer(read_only=True)
+    rubro = RubroArtesanoSerializer(read_only=True)
+    galeria_imagenes = ImagenArtesanoSerializer(many=True, read_only=True)
+    class Meta:
+        model = Artesano
+        fields = '__all__'
 
-class AdminPrestadorServicioSerializer(serializers.ModelSerializer):
-    """
-    Serializador para que el administrador vea la lista de prestadores.
-    Incluye todos los campos relevantes para la moderación.
-    """
+class AdminPrestadorListSerializer(serializers.ModelSerializer):
     categoria_nombre = serializers.CharField(source='categoria.nombre', read_only=True)
     usuario_email = serializers.CharField(source='usuario.email', read_only=True)
-
     class Meta:
         model = PrestadorServicio
         fields = [
-            'id',
-            'nombre_negocio',
-            'telefono',
-            'email_contacto',
-            'aprobado',
-            'fecha_creacion',
-            'categoria_nombre',
-            'usuario_email'
+            'id', 'nombre_negocio', 'telefono', 'email_contacto',
+            'aprobado', 'fecha_creacion', 'categoria_nombre', 'usuario_email'
         ]
+
+class AdminPrestadorDetailSerializer(serializers.ModelSerializer):
+    usuario = CustomUserSerializer(read_only=True)
+    categoria = CategoriaPrestadorSerializer(read_only=True)
+    galeria_imagenes = ImagenGaleriaSerializer(many=True, read_only=True)
+    documentos_legalizacion = DocumentoLegalizacionSerializer(many=True, read_only=True)
+    class Meta:
+        model = PrestadorServicio
+        fields = '__all__'
 
 
 class ContenidoMunicipioSerializer(serializers.ModelSerializer):
-    """
-    Serializador para los bloques de contenido del municipio.
-    """
     actualizado_por_username = serializers.CharField(source='actualizado_por.username', read_only=True)
-
     class Meta:
         model = ContenidoMunicipio
         fields = [
-            'id',
-            'seccion',
-            'titulo',
-            'contenido',
-            'orden',
-            'actualizado_por_username',
-            'fecha_actualizacion',
+            'id', 'seccion', 'titulo', 'contenido', 'orden',
+            'actualizado_por_username', 'fecha_actualizacion',
         ]
-
     def create(self, validated_data):
-        # Asigna el usuario actual al crear un nuevo bloque
         validated_data['actualizado_por'] = self.context['request'].user
         return super().create(validated_data)
-
     def update(self, instance, validated_data):
-        # Asigna el usuario actual al actualizar un bloque
         validated_data['actualizado_por'] = self.context['request'].user
         return super().update(instance, validated_data)
 
 
-# --- Serializadores para el Agente ---
-
 class AgentTaskSerializer(serializers.ModelSerializer):
-    """
-    Serializador para el modelo AgentTask.
-    Muestra el estado y resultado de una tarea del agente.
-    """
     class Meta:
         model = AgentTask
         fields = ['id', 'command', 'status', 'report', 'created_at', 'updated_at']
@@ -725,19 +656,13 @@ class AgentTaskSerializer(serializers.ModelSerializer):
 
 
 class AgentCommandSerializer(serializers.Serializer):
-    """
-    Serializador para validar la orden enviada al sistema de agentes.
-    """
     orden = serializers.CharField(
         max_length=2000,
         help_text="La orden o instrucción en lenguaje natural para el agente Coronel."
     )
 
+
 class LLMKeysSerializer(serializers.ModelSerializer):
-    """
-    Serializador para gestionar las claves de API de LLM de un usuario.
-    Permite a los usuarios ver y actualizar sus propias claves.
-    """
     class Meta:
         model = CustomUser
         fields = ['openai_api_key', 'google_api_key']
@@ -745,63 +670,40 @@ class LLMKeysSerializer(serializers.ModelSerializer):
             'openai_api_key': {'write_only': False, 'required': False, 'allow_blank': True},
             'google_api_key': {'write_only': False, 'required': False, 'allow_blank': True},
         }
-
     def to_representation(self, instance):
-        """
-        Al mostrar los datos, no devolvemos las claves.
-        En su lugar, indicamos si la clave ha sido configurada o no.
-        """
         ret = super().to_representation(instance)
         ret['openai_api_key'] = "Configurada" if instance.openai_api_key else "No configurada"
         ret['google_api_key'] = "Configurada" if instance.google_api_key else "No configurada"
         return ret
-# --- Serializadores de Auditoría ---
+
 
 class AuditLogSerializer(serializers.ModelSerializer):
-    """
-    Serializador de solo lectura para los registros de auditoría.
-    """
     user_username = serializers.CharField(source='user.username', read_only=True)
     action_display = serializers.CharField(source='get_action_display', read_only=True)
     content_object_str = serializers.CharField(source='content_object.__str__', read_only=True, default='Objeto no disponible')
-
     class Meta:
         model = AuditLog
         fields = [
-            'id',
-            'timestamp',
-            'user_username',
-            'action',
-            'action_display',
-            'details',
-            'content_object_str'
+            'id', 'timestamp', 'user_username', 'action',
+            'action_display', 'details', 'content_object_str'
         ]
 
 
-# --- Serializadores de Componentes de la Interfaz ---
-
 class HomePageComponentSerializer(serializers.ModelSerializer):
-    """
-    Serializador para los componentes de la página de inicio.
-    Permite la gestión completa (CRUD) de los componentes.
-    """
     class Meta:
         model = HomePageComponent
         fields = '__all__'
 
 
-# --- Serializadores de Configuración del Sitio ---
-
 class SiteConfigurationSerializer(serializers.ModelSerializer):
-    """
-    Serializador para el modelo de configuración del sitio.
-    Maneja la clave de API de Google Maps de forma segura.
-    """
+    logo_url = serializers.FileField(source='logo', read_only=True)
+
     class Meta:
         model = SiteConfiguration
-        # Listamos todos los campos para poder personalizar 'google_maps_api_key'
         fields = [
-            'id', 'direccion', 'horario_atencion', 'telefono_conmutador',
+            'id', 'nombre_entidad_principal', 'nombre_entidad_secundaria',
+            'nombre_secretaria', 'nombre_direccion', 'logo', 'logo_url',
+            'direccion', 'horario_atencion', 'telefono_conmutador',
             'telefono_movil', 'linea_gratuita', 'linea_anticorrupcion',
             'correo_institucional', 'correo_notificaciones', 'social_facebook',
             'social_twitter', 'social_youtube', 'social_instagram',
@@ -809,85 +711,55 @@ class SiteConfigurationSerializer(serializers.ModelSerializer):
             'seccion_prestadores_activa', 'google_maps_api_key'
         ]
         extra_kwargs = {
+            'logo': {'write_only': True, 'required': False},
             'google_maps_api_key': {'write_only': True, 'required': False, 'allow_blank': True}
         }
 
     def to_representation(self, instance):
-        """
-        No devolvemos la clave real. En su lugar, indicamos si está configurada.
-        """
         ret = super().to_representation(instance)
         ret['google_maps_api_key'] = "Configurada" if instance.google_maps_api_key else "No configurada"
         return ret
 
 
 class MenuItemSerializer(serializers.ModelSerializer):
-    """
-    Serializador recursivo para los elementos del menú.
-    Incluye los 'children' (hijos) para representar los submenús.
-    """
     children = serializers.SerializerMethodField()
-
     class Meta:
         model = MenuItem
         fields = ['id', 'nombre', 'url', 'parent', 'orden', 'children']
-
     def get_children(self, obj):
-        # Obtiene todos los hijos del elemento actual y los serializa.
         children = MenuItem.objects.filter(parent=obj).order_by('orden')
         if children.exists():
             return MenuItemSerializer(children, many=True, context=self.context).data
         return []
 
 
-# --- Serializadores de Reseñas ---
-
 class ResenaSerializer(serializers.ModelSerializer):
-    """
-    Serializador para mostrar los detalles de una reseña.
-    """
     usuario_nombre = serializers.CharField(source='usuario.username', read_only=True)
-
     class Meta:
         model = Resena
         fields = ['id', 'usuario_nombre', 'calificacion', 'comentario', 'fecha_creacion']
 
 
 class ResenaCreateSerializer(serializers.ModelSerializer):
-    """
-    Serializador para la creación de nuevas reseñas.
-    Valida que el objeto a reseñar exista.
-    """
     content_type = serializers.CharField()
-
     class Meta:
         model = Resena
         fields = ['calificacion', 'comentario', 'content_type', 'object_id']
-
     def validate(self, data):
         content_type_str = data['content_type'].lower()
-
-        # Mapeo de nombres de modelos permitidos para reseñar
         model_map = {
             'prestadorservicio': PrestadorServicio,
             'artesano': Artesano,
         }
-
         Model = model_map.get(content_type_str)
         if not Model:
             raise serializers.ValidationError("Tipo de contenido no válido. Solo se pueden reseñar 'prestadorservicio' o 'artesano'.")
-
         if not Model.objects.filter(pk=data['object_id']).exists():
             raise serializers.ValidationError(f"El objeto de tipo '{content_type_str}' con id '{data['object_id']}' no existe.")
-
         data['content_type'] = ContentType.objects.get_for_model(Model)
         return data
-
     def create(self, validated_data):
-        # Asigna el usuario actual al crear la reseña
         validated_data['usuario'] = self.context['request'].user
-
-        # get_or_create para evitar duplicados según la regla 'unique_together'
         instance, created = Resena.objects.get_or_create(
             usuario=validated_data['usuario'],
             content_type=validated_data['content_type'],
@@ -897,12 +769,196 @@ class ResenaCreateSerializer(serializers.ModelSerializer):
                 'comentario': validated_data['comentario']
             }
         )
-
-        # Si la reseña ya existía, la actualizamos en lugar de fallar.
         if not created:
             instance.calificacion = validated_data['calificacion']
             instance.comentario = validated_data['comentario']
-            instance.aprobada = False # Re-moderar en caso de edición
+            instance.aprobada = False
             instance.save()
+        return instance
 
+
+# --------------------- Módulo de Verificación de Cumplimiento ---------------------
+
+class ItemVerificacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ItemVerificacion
+        fields = ['id', 'texto_requisito', 'puntaje', 'orden', 'es_obligatorio']
+
+
+class PlantillaVerificacionListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlantillaVerificacion
+        fields = ['id', 'nombre', 'descripcion', 'categoria_prestador']
+
+
+class PlantillaVerificacionDetailSerializer(PlantillaVerificacionListSerializer):
+    items = ItemVerificacionSerializer(many=True, read_only=True)
+    class Meta(PlantillaVerificacionListSerializer.Meta):
+        fields = PlantillaVerificacionListSerializer.Meta.fields + ['items']
+
+
+class RespuestaItemVerificacionReadSerializer(serializers.ModelSerializer):
+    texto_requisito = serializers.CharField(source='item_original.texto_requisito', read_only=True)
+    puntaje = serializers.IntegerField(source='item_original.puntaje', read_only=True)
+    item_original_id = serializers.IntegerField(source='item_original.id', read_only=True)
+    class Meta:
+        model = RespuestaItemVerificacion
+        fields = ['id', 'item_original_id', 'texto_requisito', 'puntaje', 'cumple', 'justificacion']
+
+
+class RespuestaItemVerificacionWriteSerializer(serializers.ModelSerializer):
+    item_original_id = serializers.PrimaryKeyRelatedField(queryset=ItemVerificacion.objects.all(), source='item_original')
+    class Meta:
+        model = RespuestaItemVerificacion
+        fields = ['item_original_id', 'cumple', 'justificacion']
+
+
+class VerificacionListSerializer(serializers.ModelSerializer):
+    plantilla_nombre = serializers.CharField(source='plantilla_usada.nombre', read_only=True)
+    funcionario_nombre = serializers.CharField(source='funcionario_evaluador.username', read_only=True)
+    class Meta:
+        model = Verificacion
+        fields = ['id', 'fecha_visita', 'puntaje_obtenido', 'plantilla_nombre', 'funcionario_nombre']
+
+
+class VerificacionDetailSerializer(serializers.ModelSerializer):
+    respuestas_items = RespuestaItemVerificacionReadSerializer(many=True, read_only=True)
+    plantilla_nombre = serializers.CharField(source='plantilla_usada.nombre', read_only=True)
+    prestador_nombre = serializers.CharField(source='prestador.nombre_negocio', read_only=True)
+    funcionario_nombre = serializers.CharField(source='funcionario_evaluador.username', read_only=True)
+    class Meta:
+        model = Verificacion
+        fields = [
+            'id', 'fecha_visita', 'puntaje_obtenido', 'observaciones_generales',
+            'recomendaciones', 'plantilla_usada', 'plantilla_nombre', 'prestador',
+            'prestador_nombre', 'funcionario_evaluador', 'funcionario_nombre',
+            'respuestas_items'
+        ]
+
+
+class IniciarVerificacionSerializer(serializers.Serializer):
+    plantilla_id = serializers.PrimaryKeyRelatedField(queryset=PlantillaVerificacion.objects.all())
+    prestador_id = serializers.PrimaryKeyRelatedField(queryset=PrestadorServicio.objects.all())
+
+
+class GuardarVerificacionSerializer(serializers.ModelSerializer):
+    respuestas_items = RespuestaItemVerificacionWriteSerializer(many=True)
+    class Meta:
+        model = Verificacion
+        fields = [
+            'id', 'fecha_visita', 'observaciones_generales', 'recomendaciones', 'respuestas_items'
+        ]
+        read_only_fields = ['id']
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        respuestas_data = validated_data.pop('respuestas_items')
+        instance.fecha_visita = validated_data.get('fecha_visita', instance.fecha_visita)
+        instance.observaciones_generales = validated_data.get('observaciones_generales', instance.observaciones_generales)
+        instance.recomendaciones = validated_data.get('recomendaciones', instance.recomendaciones)
+        puntaje_actual = 0
+        instance.respuestas_items.all().delete()
+        for respuesta_data in respuestas_data:
+            item = respuesta_data['item_original']
+            cumple = respuesta_data['cumple']
+            RespuestaItemVerificacion.objects.create(
+                verificacion=instance,
+                item_original=item,
+                cumple=cumple,
+                justificacion=respuesta_data.get('justificacion', '')
+            )
+            if cumple:
+                puntaje_actual += item.puntaje
+        instance.puntaje_obtenido = puntaje_actual
+        instance.save()
+        prestador = instance.prestador
+        puntaje_total_prestador = sum(v.puntaje_obtenido for v in prestador.verificaciones_recibidas.all())
+        prestador.puntuacion_total = puntaje_total_prestador
+        prestador.save()
+        return instance
+
+
+# --------------------- Módulo de Capacitaciones ---------------------
+
+class AsistenciaCapacitacionSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.CharField(source='usuario.get_full_name', read_only=True)
+    usuario_rol = serializers.CharField(source='usuario.get_role_display', read_only=True)
+    class Meta:
+        model = AsistenciaCapacitacion
+        fields = ['id', 'usuario', 'usuario_nombre', 'usuario_rol', 'fecha_asistencia']
+
+
+class CapacitacionDetailSerializer(PublicacionDetailSerializer):
+    asistentes = AsistenciaCapacitacionSerializer(many=True, read_only=True)
+    class Meta(PublicacionDetailSerializer.Meta):
+        fields = PublicacionDetailSerializer.Meta.fields + ['puntos_asistencia', 'asistentes']
+
+
+class RegistrarAsistenciaSerializer(serializers.Serializer):
+    asistentes_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        help_text="Lista de IDs de los usuarios (Prestadores o Artesanos) que asistieron."
+    )
+    def validate_asistentes_ids(self, ids):
+        usuarios = CustomUser.objects.filter(
+            id__in=ids,
+            role__in=[CustomUser.Role.PRESTADOR, CustomUser.Role.ARTESANO]
+        )
+        if len(usuarios) != len(set(ids)):
+            raise serializers.ValidationError("Uno o más IDs de usuario son inválidos o no corresponden a un Prestador/Artesano.")
+        return ids
+    def save(self, **kwargs):
+        capacitacion_id = self.context['view'].kwargs.get('pk')
+        try:
+            capacitacion = Publicacion.objects.get(pk=capacitacion_id, tipo=Publicacion.Tipo.CAPACITACION)
+        except Publicacion.DoesNotExist:
+            raise serializers.ValidationError({"capacitacion_id": "La capacitación especificada no existe."})
+        asistentes_ids = self.validated_data['asistentes_ids']
+        with transaction.atomic():
+            usuarios_a_registrar = CustomUser.objects.filter(id__in=asistentes_ids)
+            AsistenciaCapacitacion.objects.filter(capacitacion=capacitacion).delete()
+            asistencias_a_crear = [
+                AsistenciaCapacitacion(capacitacion=capacitacion, usuario=usuario)
+                for usuario in usuarios_a_registrar
+            ]
+            AsistenciaCapacitacion.objects.bulk_create(asistencias_a_crear)
+        return {"status": "success", "message": f"Se ha registrado la asistencia para {len(asistentes_ids)} usuarios."}
+
+
+# --------------------- Módulo de Puntuación ---------------------
+
+class ScoringRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ScoringRule
+        fields = '__all__'
+
+
+class NotificacionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notificacion
+        fields = ['id', 'mensaje', 'leido', 'fecha_creacion', 'url']
+
+
+# --- Serializador para la Configuración de IA del Usuario ---
+
+class AIConfigSerializer(serializers.ModelSerializer):
+    """
+    Serializador para que un usuario gestione su configuración personal de IA.
+    La clave de API es de solo escritura por seguridad.
+    """
+    class Meta:
+        model = CustomUser
+        fields = ['ai_provider', 'api_key']
+        extra_kwargs = {
+            'api_key': {'write_only': True, 'required': False, 'allow_blank': True, 'style': {'input_type': 'password'}}
+        }
+
+    def update(self, instance, validated_data):
+        # La lógica de la vista asegura que el usuario solo puede actualizar su propia instancia.
+        instance.ai_provider = validated_data.get('ai_provider', instance.ai_provider)
+
+        # Solo actualiza la clave de API si se proporciona una nueva.
+        if 'api_key' in validated_data and validated_data['api_key']:
+            instance.api_key = validated_data['api_key']
+
+        instance.save(update_fields=['ai_provider', 'api_key'])
         return instance

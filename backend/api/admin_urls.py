@@ -10,11 +10,12 @@ router.register(r'menu-items', views.MenuItemViewSet, basename='admin-menu-items
 router.register(r'homepage-components', views.HomePageComponentViewSet, basename='admin-homepage-components')
 router.register(r'audit-logs', views.AuditLogViewSet, basename='admin-audit-logs')
 router.register(r'sugerencias', views.SugerenciaAdminViewSet, basename='admin-sugerencias')
+router.register(r'prestadores', views.AdminPrestadorViewSet, basename='admin-prestadores')
+router.register(r'artesanos', views.AdminArtesanoViewSet, basename='admin-artesanos')
 
 urlpatterns = [
-    path('prestadores/', views.AdminPrestadorListView.as_view(), name='admin-prestadores-list'),
-    path('prestadores/<int:pk>/approve/', views.AdminApprovePrestadorView.as_view(), name='admin-prestador-approve'),
     path('site-config/', views.SiteConfigurationView.as_view(), name='admin-site-config'),
-    path('statistics/', views.StatisticsView.as_view(), name='admin-statistics'),
+    path('statistics/detailed/', views.DetailedStatisticsView.as_view(), name='admin-detailed-statistics'),
+    path('export-excel/', views.ExportExcelView.as_view(), name='export-excel'),
     path('', include(router.urls)),
 ]

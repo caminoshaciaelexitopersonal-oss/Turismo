@@ -1,83 +1,111 @@
 from typing import TypedDict, Any, List, Annotated
 import operator
+from langchain_core.messages import BaseMessage, HumanMessage
 from langgraph.graph import StateGraph, END, START
+from langgraph.prebuilt import ToolNode
+from langchain_openai import ChatOpenAI
+# Potencialmente para otros proveedores:
+# from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.tools import BaseTool
-import json
+from api.models import CustomUser
+
 
 class SargentoBaseState(TypedDict):
-    """
-    Estado simplificado para un Sargento ejecutor de herramientas.
-    No necesita un historial de mensajes porque no razona, solo ejecuta.
-    """
-    teniente_order: str  # La orden directa, que se espera que contenga los argumentos de la herramienta
-    app_context: Any
+    """La pizarra táctica estandarizada para todos los Sargentos."""
+    teniente_order: str
+    app_context: dict  # Se espera que contenga {'user': CustomUser}
+    messages: Annotated[List[BaseMessage], operator.add]
     final_report: str
     error: str | None
 
+
 class SargentoGraphBuilder:
     """
-    Constructor para un agente Sargento que es un simple EJECUTOR de herramientas.
-    Este agente no utiliza un LLM para decidir. Selecciona la primera herramienta
-    disponible y la ejecuta con los argumentos extraídos de la orden del Teniente.
+    Constructor estandarizado para agentes Sargento.
+    Construye un grafo que utiliza el proveedor de IA y la clave de API
+    específicos del usuario que realiza la solicitud.
     """
+
     def __init__(self, squad: List[BaseTool], squad_name: str):
-        if not squad:
-            raise ValueError("La escuadra (squad) no puede estar vacía.")
         self.squad = squad
         self.squad_name = squad_name
+        self.squad_executor = ToolNode(self.squad)
 
-    def execute_tool_node(self, state: SargentoBaseState) -> SargentoBaseState:
+    def get_sargento_brain(self, state: SargentoBaseState):
         """
-        Nodo principal que ejecuta la primera herramienta de la escuadra.
-        Intenta extraer los argumentos de la orden del Teniente.
+        El cerebro del Sargento. Construye dinámicamente el LLM con las
+        credenciales del usuario y decide la siguiente acción.
         """
-        print(f"--- 🫡 SARGENTO ({self.squad_name}): ¡Recibida orden! Ejecutando herramienta... ---")
+        print(f"--- 🤔 SARGENTO ({self.squad_name}): Analizando orden para el usuario... ---")
 
-        # Asumimos que la primera herramienta es la que se debe ejecutar.
-        tool_to_execute = self.squad[0]
+        user = state['app_context'].get('user')
+        if not isinstance(user, CustomUser) or not user.api_key or not user.ai_provider:
+            raise ValueError("Contexto de aplicación inválido o configuración de IA del usuario incompleta.")
 
-        try:
-            # En un sistema real, la orden del teniente contendría los argumentos en un formato claro.
-            # Aquí, para la prueba, asumimos que la orden es un JSON string con los argumentos.
-            # Esta es una simplificación; un sistema más robusto necesitaría un análisis del lenguaje natural.
-            # Por ahora, la orden es la descripción de la tarea del plan simulado.
-            # Vamos a crear un diccionario de argumentos basado en la orden de prueba.
-            # Esto es un HACK para la prueba, ya que no tenemos un LLM para extraer los argumentos.
+        # --- Lógica Multi-Inquilino ---
+        # Se instancia el modelo de lenguaje específico basado en la configuración del usuario.
+        api_key = user.api_key
 
-            # Ejemplo de orden: "Crear un nuevo perfil de prestador de servicios para el restaurante 'La Brasa Llanera', con email 'brasa@example.com', slug de categoría 'restaurantes' y teléfono '3123456789'."
-            # Extraemos los argumentos de la orden de prueba para la herramienta `crear_perfil_prestador`
-            # Esto es frágil y solo funcionará para nuestra prueba específica.
-            order = state["teniente_order"]
-            args = {
-                "email": "brasa@example.com",
-                "nombre_negocio": "La Brasa Llanera",
-                "categoria_slug": "restaurantes",
-                "telefono": "3123456789"
-            }
+        if user.ai_provider == CustomUser.AIProvider.OPENAI:
+            model = ChatOpenAI(model="gpt-4o", temperature=0, api_key=api_key)
+        # elif user.ai_provider == CustomUser.AIProvider.GOOGLE:
+        #     model = ChatGoogleGenerativeAI(
+        #         model="gemini-pro",
+        #         google_api_key=api_key,
+        #         convert_system_message_to_human=True
+        #     )
+        else:
+            raise NotImplementedError(f"Proveedor de IA '{user.ai_provider}' no soportado.")
 
-            print(f"--- 🛠️ Herramienta `{tool_to_execute.name}` seleccionada con argumentos: {args} ---")
+        # Se enlazan las herramientas de la escuadra al modelo específico del usuario.
+        bound_model = model.bind_tools(self.squad)
 
-            # Ejecutamos la herramienta con los argumentos extraídos.
-            result = tool_to_execute.invoke(args)
+        return bound_model.invoke(state["messages"])
 
-            # Convertimos el resultado a un string JSON para el informe.
-            report = json.dumps(result, ensure_ascii=False, indent=2)
-            state["final_report"] = f"Misión completada por la escuadra de {self.squad_name}. Informe de la herramienta '{tool_to_execute.name}':\n{report}"
+    def route_action(self, state: SargentoBaseState):
+        """Revisa la decisión del cerebro y enruta al ejecutor o al informe final."""
+        last_message = state["messages"][-1]
+        if not hasattr(last_message, 'tool_calls') or not last_message.tool_calls:
+            return "compile_report"
+        return "squad_executor"
 
-        except Exception as e:
-            error_message = f"Error al ejecutar la herramienta '{tool_to_execute.name}': {e}"
-            print(f"--- ❌ SARGENTO ({self.squad_name}): {error_message} ---")
-            state["error"] = error_message
-            state["final_report"] = f"Misión fallida. {error_message}"
+    def compile_report_node(self, state: SargentoBaseState) -> SargentoBaseState:
+        """Compila el informe final para el Teniente a partir del historial de la misión."""
+        print(f"--- 📄 SARGENTO ({self.squad_name}): Misión completada. Compilando reporte. ---")
+        final_ai_message = state["messages"][-1].content
+        executed_steps = [
+            f"Acción: {msg.name}, Resultado: {msg.content}"
+            for msg in state["messages"] if msg.type == 'tool'
+        ]
 
+        if not executed_steps:
+            report_body = "Misión completada sin necesidad de acciones directas de la escuadra."
+        else:
+            report_body = "Resumen de acciones de la escuadra:\n- " + "\n- ".join(executed_steps)
+
+        state["final_report"] = f"{final_ai_message}\n\n---\n**Bitácora de Ejecución:**\n{report_body}"
         return state
 
     def build_graph(self):
-        """Construye y compila el grafo LangGraph para el Sargento ejecutor."""
+        """Construye y compila el grafo LangGraph para el Sargento."""
         workflow = StateGraph(SargentoBaseState)
 
-        workflow.add_node("executor", self.execute_tool_node)
-        workflow.add_edge(START, "executor")
-        workflow.add_edge("executor", END)
+        def mission_entry_node(state: SargentoBaseState):
+            """Nodo de entrada que formatea la orden del Teniente como el primer mensaje."""
+            return {"messages": [HumanMessage(content=state["teniente_order"])]}
+
+        workflow.add_node("mission_entry", mission_entry_node)
+        workflow.add_node("brain", self.get_sargento_brain)
+        workflow.add_node("squad_executor", self.squad_executor)
+        workflow.add_node("compile_report", self.compile_report_node)
+
+        workflow.add_edge(START, "mission_entry")
+        workflow.add_edge("mission_entry", "brain")
+        workflow.add_conditional_edges("brain", self.route_action, {
+            "squad_executor": "squad_executor",
+            "compile_report": "compile_report"
+        })
+        workflow.add_edge("squad_executor", "brain")
+        workflow.add_edge("compile_report", END)
 
         return workflow.compile()

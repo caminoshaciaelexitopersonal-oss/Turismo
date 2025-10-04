@@ -4,7 +4,7 @@ import axios from "axios";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
 
-const apiClient = axios.create({
+const api = axios.create({
   baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
@@ -12,7 +12,7 @@ const apiClient = axios.create({
 });
 
 // Interceptor para añadir el token de autenticación a las peticiones
-apiClient.interceptors.request.use(
+api.interceptors.request.use(
   (config) => {
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("authToken");
@@ -26,6 +26,8 @@ apiClient.interceptors.request.use(
     return Promise.reject(error);
   }
 );
+
+export default api;
 
 // --- Tipos de Datos ---
 
@@ -96,6 +98,12 @@ export interface PrestadorPublico {
   nombre_negocio: string;
   categoria_nombre: string;
   imagen_principal: string | null;
+  descripcion?: string;
+  telefono?: string;
+  email_contacto?: string;
+  red_social_facebook?: string;
+  red_social_instagram?: string;
+  red_social_whatsapp?: string;
 }
 
 export interface RubroArtesano {
@@ -110,6 +118,12 @@ export interface ArtesanoPublico {
   nombre_artesano: string;
   rubro_nombre: string;
   foto_url: string | null;
+  descripcion?: string;
+  telefono?: string;
+  email_contacto?: string;
+  red_social_facebook?: string;
+  red_social_instagram?: string;
+  red_social_whatsapp?: string;
 }
 
 export interface ImagenArtesano {
@@ -169,6 +183,20 @@ export interface Publicacion {
   fecha_publicacion: string;
 }
 
+export interface RutaTuristica {
+  id: number;
+  nombre: string;
+  slug: string;
+  descripcion: string;
+  imagen_principal_url: string | null;
+}
+
+export interface RutaTuristicaDetalle extends RutaTuristica {
+  imagenes: ImagenGaleria[];
+  atractivos: PrestadorPublico[]; // Reutilizamos el tipo para la tarjeta
+  prestadores: PrestadorPublico[]; // Reutilizamos el tipo para la tarjeta
+}
+
 // --- Tipos para respuestas paginadas ---
 export interface PaginatedResponse<T> {
   count: number;
@@ -180,7 +208,7 @@ export interface PaginatedResponse<T> {
 // --- Funciones de la API ---
 
 export const getCategorias = async (): Promise<Categoria[]> => {
-  const response = await apiClient.get<Categoria[]>(
+  const response = await api.get<Categoria[]>(
     "/prestadores/categorias/"
   );
   return response.data;
@@ -200,11 +228,21 @@ export const getPublicaciones = async (options: {
   if (options.start_date) params.append("start_date", options.start_date);
   if (options.end_date) params.append("end_date", options.end_date);
 
-  const response = await apiClient.get<
+  const response = await api.get<
     PaginatedResponse<Publicacion>
   >("/publicaciones/", { params });
 
   return response.data.results;
+};
+
+export const getRutasTuristicas = async (): Promise<RutaTuristica[]> => {
+  const response = await api.get<PaginatedResponse<RutaTuristica>>("/rutas-turisticas/");
+  return response.data.results;
+};
+
+export const getRutaTuristicaBySlug = async (slug: string): Promise<RutaTuristicaDetalle> => {
+  const response = await api.get<RutaTuristicaDetalle>(`/rutas-turisticas/${slug}/`);
+  return response.data;
 };
 
 export const getPrestadores = async (
@@ -215,7 +253,7 @@ export const getPrestadores = async (
   if (categoriaSlug) params.append("categoria", categoriaSlug);
   if (searchTerm) params.append("search", searchTerm);
 
-  const response = await apiClient.get<
+  const response = await api.get<
     PaginatedResponse<PrestadorPublico>
   >("/prestadores/", { params });
 
@@ -225,7 +263,7 @@ export const getPrestadores = async (
 export const getPrestadorById = async (
   id: number
 ): Promise<PrestadorPublicoDetalle> => {
-  const response = await apiClient.get<PrestadorPublicoDetalle>(
+  const response = await api.get<PrestadorPublicoDetalle>(
     `/prestadores/${id}/`
   );
   return response.data;
@@ -234,7 +272,7 @@ export const getPrestadorById = async (
 // --- API de Artesanos ---
 
 export const getRubrosArtesano = async (): Promise<RubroArtesano[]> => {
-    const response = await apiClient.get<RubroArtesano[]>('/artesanos/rubros/');
+    const response = await api.get<RubroArtesano[]>('/artesanos/rubros/');
     return response.data;
 };
 
@@ -243,12 +281,12 @@ export const getArtesanos = async (rubroSlug?: string, searchTerm?: string): Pro
     if (rubroSlug) params.append('rubro', rubroSlug);
     if (searchTerm) params.append('search', searchTerm);
 
-    const response = await apiClient.get<PaginatedResponse<ArtesanoPublico>>('/artesanos/', { params });
+    const response = await api.get<PaginatedResponse<ArtesanoPublico>>('/artesanos/', { params });
     return response.data.results;
 };
 
 export const getArtesanoById = async (id: number): Promise<ArtesanoPublicoDetalle> => {
-    const response = await apiClient.get<ArtesanoPublicoDetalle>(`/artesanos/${id}/`);
+    const response = await api.get<ArtesanoPublicoDetalle>(`/artesanos/${id}/`);
     return response.data;
 };
 
@@ -274,12 +312,12 @@ export const getResenas = async (contentType: string, objectId: number): Promise
     content_type: contentType,
     object_id: String(objectId),
   });
-  const response = await apiClient.get<PaginatedResponse<Resena>>(`/resenas/`, { params });
+  const response = await api.get<PaginatedResponse<Resena>>(`/resenas/`, { params });
   return response.data.results;
 };
 
 export const createResena = async (payload: CreateResenaPayload): Promise<Resena> => {
-  const response = await apiClient.post<Resena>('/resenas/', payload);
+  const response = await api.post<Resena>('/resenas/', payload);
   return response.data;
 };
 
@@ -295,16 +333,16 @@ export const getAdminResenas = async (aprobada?: boolean): Promise<PaginatedResp
   if (aprobada !== undefined) {
     params.append('aprobada', String(aprobada));
   }
-  const response = await apiClient.get<PaginatedResponse<AdminResena>>(`/resenas/`, { params });
+  const response = await api.get<PaginatedResponse<AdminResena>>(`/resenas/`, { params });
   return response.data;
 };
 
 export const approveResena = async (resenaId: number): Promise<void> => {
-  await apiClient.post(`/resenas/${resenaId}/approve/`);
+  await api.post(`/resenas/${resenaId}/approve/`);
 };
 
 export const deleteResena = async (resenaId: number): Promise<void> => {
-  await apiClient.delete(`/resenas/${resenaId}/`);
+  await api.delete(`/resenas/${resenaId}/`);
 };
 
 // --- API de Feedback para Proveedores ---
@@ -318,7 +356,7 @@ export interface FeedbackProveedor {
 }
 
 export const getFeedbackProveedor = async (): Promise<PaginatedResponse<FeedbackProveedor>> => {
-  const response = await apiClient.get<PaginatedResponse<FeedbackProveedor>>('/profile/feedback/');
+  const response = await api.get<PaginatedResponse<FeedbackProveedor>>('/profile/feedback/');
   return response.data;
 };
 
@@ -332,7 +370,7 @@ export interface CreateSugerenciaPayload {
 }
 
 export const createSugerencia = async (payload: CreateSugerenciaPayload): Promise<void> => {
-  await apiClient.post('/sugerencias/', payload);
+  await api.post('/sugerencias/', payload);
 };
 
 // --- API de Gestión de Sugerencias (Admin) ---
@@ -353,7 +391,7 @@ export interface AdminSugerencia {
 export const getAdminSugerencias = async (estado?: string): Promise<PaginatedResponse<AdminSugerencia>> => {
   const params = new URLSearchParams();
   if (estado) params.append('estado', estado);
-  const response = await apiClient.get<PaginatedResponse<AdminSugerencia>>('/admin/sugerencias/', { params });
+  const response = await api.get<PaginatedResponse<AdminSugerencia>>('/admin/sugerencias/', { params });
   return response.data;
 };
 
@@ -361,12 +399,12 @@ export const updateSugerencia = async (
   sugerenciaId: number,
   data: Partial<{ estado: string; es_publico: boolean }>
 ): Promise<AdminSugerencia> => {
-  const response = await apiClient.patch<AdminSugerencia>(`/admin/sugerencias/${sugerenciaId}/`, data);
+  const response = await api.patch<AdminSugerencia>(`/admin/sugerencias/${sugerenciaId}/`, data);
   return response.data;
 };
 
 export const deleteSugerencia = async (sugerenciaId: number): Promise<void> => {
-  await apiClient.delete(`/admin/sugerencias/${sugerenciaId}/`);
+  await api.delete(`/admin/sugerencias/${sugerenciaId}/`);
 };
 
 export interface PublicFelicitacion {
@@ -376,7 +414,7 @@ export interface PublicFelicitacion {
 }
 
 export const getPublicasFelicitaciones = async (): Promise<PublicFelicitacion[]> => {
-  const response = await apiClient.get<PublicFelicitacion[]>('/sugerencias/felicitaciones-publicas/');
+  const response = await api.get<PublicFelicitacion[]>('/sugerencias/felicitaciones-publicas/');
   return response.data;
 };
 // --- API del Consejo Consultivo ---
@@ -389,7 +427,7 @@ export interface ConsejoConsultivo {
   documento_adjunto: string | null;
 }
 export const getConsejoConsultivoPublicaciones = async (): Promise<ConsejoConsultivo[]> => {
-  const response = await apiClient.get<ConsejoConsultivo[]>('/consejo-consultivo/');
+  const response = await api.get<ConsejoConsultivo[]>('/consejo-consultivo/');
   // La API no pagina esta respuesta, devuelve un array directamente
   return response.data;
 };
@@ -405,7 +443,7 @@ export interface Location {
 }
 
 export const getLocations = async (): Promise<Location[]> => {
-    const response = await apiClient.get<Location[]>('/locations/');
+    const response = await api.get<Location[]>('/locations/');
     return response.data;
 }
 
@@ -422,12 +460,12 @@ export interface HechoHistorico {
 }
 
 export const getHechosHistoricos = async (): Promise<HechoHistorico[]> => {
-  const response = await apiClient.get<HechoHistorico[]>('/hechos-historicos/');
+  const response = await api.get<HechoHistorico[]>('/hechos-historicos/');
   return response.data;
 };
 
 export const createHechoHistorico = async (data: FormData): Promise<HechoHistorico> => {
-  const response = await apiClient.post('/hechos-historicos/', data, {
+  const response = await api.post('/hechos-historicos/', data, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return response.data;
@@ -451,23 +489,23 @@ export interface CaracterizacionAgroturismo {
     otras_certificaciones: string;
     pertenece_gremio_turismo: boolean;
     nombre_gremio: string;
-    servicios_ofrecidos: any;
-    caracteristicas_agroturismo: any;
-    especialidad_agricola: any;
-    especialidad_pecuaria: any;
-    especialidad_avicola: any;
-    especialidad_agroindustrial: any;
-    actividades_agricolas: any;
-    actividades_avicolas: any;
-    actividades_agroindustriales: any;
-    actividades_pecuarias: any;
-    actividades_piscicultura: any;
-    actividades_ecoturismo: any;
-    actividades_turismo_aventura: any;
-    otras_actividades_turismo: any;
-    caracteristicas_a_potencializar: any;
+    servicios_ofrecidos: Record<string, unknown>;
+    caracteristicas_agroturismo: Record<string, unknown>;
+    especialidad_agricola: Record<string, unknown>;
+    especialidad_pecuaria: Record<string, unknown>;
+    especialidad_avicola: Record<string, unknown>;
+    especialidad_agroindustrial: Record<string, unknown>;
+    actividades_agricolas: Record<string, unknown>;
+    actividades_avicolas: Record<string, unknown>;
+    actividades_agroindustriales: Record<string, unknown>;
+    actividades_pecuarias: Record<string, unknown>;
+    actividades_piscicultura: Record<string, unknown>;
+    actividades_ecoturismo: Record<string, unknown>;
+    actividades_turismo_aventura: Record<string, unknown>;
+    otras_actividades_turismo: Record<string, unknown>;
+    caracteristicas_a_potencializar: Record<string, unknown>;
     otras_actividades_a_potencializar: string;
-    formacion_asesoria_deseada: any;
+    formacion_asesoria_deseada: Record<string, unknown>;
     protocolos_seguridad: boolean;
     protocolos_bioseguridad: boolean;
     cumple_lineamientos_escnna: boolean;
@@ -478,26 +516,26 @@ export interface CaracterizacionAgroturismo {
     descripcion_actividades_culturales: string;
     realiza_actividades_llaneridad: boolean;
     descripcion_actividades_llaneridad: string;
-    medios_promocion: any;
-    datos_encuestado: any;
+    medios_promocion: Record<string, unknown>;
+    datos_encuestado: Record<string, unknown>;
 }
 
 export const getAgroturismoCaracterizacionByPrestadorId = async (prestadorId: number): Promise<CaracterizacionAgroturismo | null> => {
     try {
-        const response = await apiClient.get<CaracterizacionAgroturismo[]>(`/caracterizacion/agroturismo/?prestador_id=${prestadorId}`);
+        const response = await api.get<CaracterizacionAgroturismo[]>(`/caracterizacion/agroturismo/?prestador_id=${prestadorId}`);
         return response.data[0] || null;
-    } catch (error) {
+    } catch {
         return null;
     }
 };
 
-export const createAgroturismoCaracterizacion = async (data: object): Promise<CaracterizacionAgroturismo> => {
-    const response = await apiClient.post<CaracterizacionAgroturismo>('/caracterizacion/agroturismo/', data);
+export const createAgroturismoCaracterizacion = async (data: Partial<CaracterizacionAgroturismo>): Promise<CaracterizacionAgroturismo> => {
+    const response = await api.post<CaracterizacionAgroturismo>('/caracterizacion/agroturismo/', data);
     return response.data;
 };
 
-export const updateAgroturismoCaracterizacion = async (id: number, data: object): Promise<CaracterizacionAgroturismo> => {
-    const response = await apiClient.patch<CaracterizacionAgroturismo>(`/caracterizacion/agroturismo/${id}/`, data);
+export const updateAgroturismoCaracterizacion = async (id: number, data: Partial<CaracterizacionAgroturismo>): Promise<CaracterizacionAgroturismo> => {
+    const response = await api.patch<CaracterizacionAgroturismo>(`/caracterizacion/agroturismo/${id}/`, data);
     return response.data;
 };
 
@@ -522,7 +560,7 @@ export interface CaracterizacionGuiaTuristico {
     pertenece_lgtbi: boolean;
     discapacidad: string;
     grupo_atencion_especial: string;
-    especialidades: any;
+    especialidades: Record<string, unknown>;
     forma_prestacion_servicio: string;
     forma_prestacion_servicio_otro: string;
     pertenece_gremio: boolean;
@@ -530,7 +568,7 @@ export interface CaracterizacionGuiaTuristico {
     presta_servicios_empresa: boolean;
     nombre_empresa_servicio: string;
     rutas_servicio: string;
-    atractivos_por_municipio: any;
+    atractivos_por_municipio: Record<string, unknown>;
     tecnologia_guianza_sena: boolean;
     numero_tarjeta_profesional: string;
     fecha_tarjeta: string | null;
@@ -541,8 +579,8 @@ export interface CaracterizacionGuiaTuristico {
     experiencia_independiente_meses: number;
     experiencia_sector_privado_anos: number;
     experiencia_sector_privado_meses: number;
-    idiomas: any;
-    capacitaciones_recibidas: any[];
+    idiomas: Record<string, unknown>;
+    capacitaciones_recibidas: Record<string, unknown>[];
     realiza_evaluacion_servicio: boolean;
     cual_evaluacion: string;
     temas_profundizar: string;
@@ -550,22 +588,22 @@ export interface CaracterizacionGuiaTuristico {
 
 export const getGuiaCaracterizacionByPrestadorId = async (prestadorId: number): Promise<CaracterizacionGuiaTuristico | null> => {
     try {
-        const response = await apiClient.get<CaracterizacionGuiaTuristico[]>(`/caracterizacion/guias/?prestador_id=${prestadorId}`);
+        const response = await api.get<CaracterizacionGuiaTuristico[]>(`/caracterizacion/guias/?prestador_id=${prestadorId}`);
         return response.data[0] || null;
-    } catch (error) {
+    } catch {
         return null;
     }
 };
 
 export const createGuiaCaracterizacion = async (data: FormData): Promise<CaracterizacionGuiaTuristico> => {
-    const response = await apiClient.post<CaracterizacionGuiaTuristico>('/caracterizacion/guias/', data, {
+    const response = await api.post<CaracterizacionGuiaTuristico>('/caracterizacion/guias/', data, {
         headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
 };
 
 export const updateGuiaCaracterizacion = async (id: number, data: FormData): Promise<CaracterizacionGuiaTuristico> => {
-    const response = await apiClient.patch<CaracterizacionGuiaTuristico>(`/caracterizacion/guias/${id}/`, data, {
+    const response = await api.patch<CaracterizacionGuiaTuristico>(`/caracterizacion/guias/${id}/`, data, {
         headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
@@ -594,7 +632,7 @@ export interface CaracterizacionArtesano {
     tipo_artesania_otra: string;
     origen_produccion: string;
     origen_produccion_otro: string;
-    oficios_artesanales: any;
+    oficios_artesanales: Record<string, unknown>;
     producto_principal: string;
     materia_prima_principal: string;
     tecnica_utilizada: string;
@@ -612,30 +650,30 @@ export interface CaracterizacionArtesano {
     tiene_registro_nacional_artesano: boolean;
     numero_registro_nacional: string;
     fecha_actualizacion_registro: string | null;
-    idiomas: any;
-    capacitaciones_recibidas: any[];
+    idiomas: Record<string, unknown>;
+    capacitaciones_recibidas: Record<string, unknown>[];
     temas_profundizar: string;
     elementos_maquinaria_necesaria: string;
 }
 
 export const getArtesanoCaracterizacionByArtesanoId = async (artesanoId: number): Promise<CaracterizacionArtesano | null> => {
     try {
-        const response = await apiClient.get<CaracterizacionArtesano[]>(`/caracterizacion/artesanos/?artesano_id=${artesanoId}`);
+        const response = await api.get<CaracterizacionArtesano[]>(`/caracterizacion/artesanos/?artesano_id=${artesanoId}`);
         return response.data[0] || null;
-    } catch (error) {
+    } catch {
         return null;
     }
 };
 
 export const createArtesanoCaracterizacion = async (data: FormData): Promise<CaracterizacionArtesano> => {
-    const response = await apiClient.post<CaracterizacionArtesano>('/caracterizacion/artesanos/', data, {
+    const response = await api.post<CaracterizacionArtesano>('/caracterizacion/artesanos/', data, {
         headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
 };
 
 export const updateArtesanoCaracterizacion = async (id: number, data: FormData): Promise<CaracterizacionArtesano> => {
-    const response = await apiClient.patch<CaracterizacionArtesano>(`/caracterizacion/artesanos/${id}/`, data, {
+    const response = await api.patch<CaracterizacionArtesano>(`/caracterizacion/artesanos/${id}/`, data, {
         headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
@@ -667,26 +705,26 @@ export interface ConsejoLocal {
 }
 
 export const getConsejosLocales = async (): Promise<ConsejoLocal[]> => {
-    const response = await apiClient.get('/consejos-locales/');
+    const response = await api.get('/consejos-locales/');
     return response.data.results || response.data;
 };
 
-export const createConsejoLocal = async (data: any): Promise<ConsejoLocal> => {
-    const response = await apiClient.post('/consejos-locales/', data, {
+export const createConsejoLocal = async (data: FormData): Promise<ConsejoLocal> => {
+    const response = await api.post('/consejos-locales/', data, {
         headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
 };
 
-export const updateConsejoLocal = async (id: number, data: any): Promise<ConsejoLocal> => {
-    const response = await apiClient.patch(`/consejos-locales/${id}/`, data, {
+export const updateConsejoLocal = async (id: number, data: FormData): Promise<ConsejoLocal> => {
+    const response = await api.patch(`/consejos-locales/${id}/`, data, {
         headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
 };
 
 export const deleteConsejoLocal = async (id: number): Promise<void> => {
-    await apiClient.delete(`/consejos-locales/${id}/`);
+    await api.delete(`/consejos-locales/${id}/`);
 };
 
 // --- API de Diagnóstico de Rutas Turísticas ---
@@ -695,10 +733,10 @@ export interface DiagnosticoRutaTuristica {
     id: number;
     nombre_ruta: string;
     descripcion_general: string;
-    actores_cadena_valor: any[];
-    entidades_responsables: any[];
-    eventos_turisticos: any[];
-    atractivos_turisticos: any[];
+    actores_cadena_valor: Record<string, unknown>[];
+    entidades_responsables: Record<string, unknown>[];
+    eventos_turisticos: Record<string, unknown>[];
+    atractivos_turisticos: Record<string, unknown>[];
     vias_acceso: string;
     transporte: string;
     senalizacion: string;
@@ -718,34 +756,72 @@ export interface DiagnosticoRutaTuristica {
 }
 
 export const getDiagnosticosRuta = async (): Promise<DiagnosticoRutaTuristica[]> => {
-    const response = await apiClient.get('/diagnostico-rutas/');
+    const response = await api.get('/diagnostico-rutas/');
     return response.data.results || response.data;
 };
 
-export const createDiagnosticoRuta = async (data: any): Promise<DiagnosticoRutaTuristica> => {
-    const response = await apiClient.post('/diagnostico-rutas/', data);
+export const createDiagnosticoRuta = async (data: Partial<DiagnosticoRutaTuristica>): Promise<DiagnosticoRutaTuristica> => {
+    const response = await api.post('/diagnostico-rutas/', data);
     return response.data;
 };
 
-export const updateDiagnosticoRuta = async (id: number, data: any): Promise<DiagnosticoRutaTuristica> => {
-    const response = await apiClient.patch(`/diagnostico-rutas/${id}/`, data);
+export const updateDiagnosticoRuta = async (id: number, data: Partial<DiagnosticoRutaTuristica>): Promise<DiagnosticoRutaTuristica> => {
+    const response = await api.patch(`/diagnostico-rutas/${id}/`, data);
     return response.data;
 };
 
 export const deleteDiagnosticoRuta = async (id: number): Promise<void> => {
-    await apiClient.delete(`/diagnostico-rutas/${id}/`);
+    await api.delete(`/diagnostico-rutas/${id}/`);
+};
+
+// --- API de Verificaciones de Cumplimiento (para Prestadores) ---
+
+export interface RespuestaItemVerificacionDetalle {
+    item_original_texto: string;
+    cumple: boolean;
+    justificacion: string;
+}
+
+export interface VerificacionDetalle {
+    id: number;
+    plantilla_usada_nombre: string;
+    funcionario_evaluador_nombre: string;
+    fecha_visita: string;
+    puntaje_obtenido: number;
+    observaciones_generales: string;
+    recomendaciones: string;
+    respuestas_items: RespuestaItemVerificacionDetalle[];
+}
+
+export interface VerificacionHistorialItem {
+    id: number;
+    fecha_visita: string;
+    puntaje_obtenido: number;
+    plantilla_usada_nombre: string;
+    funcionario_evaluador_nombre: string;
+}
+
+export const getVerificacionHistory = async (): Promise<VerificacionHistorialItem[]> => {
+    const response = await api.get('/verificaciones/');
+    // La API de VerificacionViewSet devuelve una lista paginada, accedemos a results
+    return response.data.results || response.data;
+};
+
+export const getVerificacionDetail = async (id: number): Promise<VerificacionDetalle> => {
+    const response = await api.get(`/verificaciones/${id}/`);
+    return response.data;
 };
 
 
 export const updateHechoHistorico = async (id: number, data: FormData): Promise<HechoHistorico> => {
-  const response = await apiClient.patch(`/hechos-historicos/${id}/`, data, {
+  const response = await api.patch(`/hechos-historicos/${id}/`, data, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return response.data;
 };
 
 export const deleteHechoHistorico = async (id: number): Promise<void> => {
-  await apiClient.delete(`/hechos-historicos/${id}/`);
+  await api.delete(`/hechos-historicos/${id}/`);
 };
 
 
@@ -754,14 +830,14 @@ export const deleteHechoHistorico = async (id: number): Promise<void> => {
 export const getUsers = async (): Promise<
   PaginatedResponse<AdminUser>
 > => {
-  const response = await apiClient.get("/admin/users/");
+  const response = await api.get("/admin/users/");
   return response.data;
 };
 
 export const createUser = async (
   userData: Omit<AdminUser, "id">
 ): Promise<AdminUser> => {
-  const response = await apiClient.post("/admin/users/", userData);
+  const response = await api.post("/admin/users/", userData);
   return response.data;
 };
 
@@ -769,7 +845,7 @@ export const updateUser = async (
   id: number,
   userData: Partial<AdminUser>
 ): Promise<AdminUser> => {
-  const response = await apiClient.patch(
+  const response = await api.patch(
     `/admin/users/${id}/`,
     userData
   );
@@ -777,20 +853,20 @@ export const updateUser = async (
 };
 
 export const deleteUser = async (id: number): Promise<void> => {
-  await apiClient.delete(`/admin/users/${id}/`);
+  await api.delete(`/admin/users/${id}/`);
 };
 
 // --- API de Configuración del Sitio ---
 
 export const getSiteConfig = async (): Promise<SiteConfiguration> => {
-  const response = await apiClient.get("/admin/site-config/");
+  const response = await api.get("/admin/site-config/");
   return response.data;
 };
 
 export const updateSiteConfig = async (
   configData: Partial<SiteConfiguration>
 ): Promise<SiteConfiguration> => {
-  const response = await apiClient.patch(
+  const response = await api.patch(
     "/admin/site-config/",
     configData
   );
@@ -802,7 +878,7 @@ export const updateSiteConfig = async (
 export const getMenuItems = async (): Promise<
   PaginatedResponse<MenuItem>
 > => {
-  const response = await apiClient.get("/admin/menu-items/");
+  const response = await api.get("/admin/menu-items/");
   return response.data;
 };
 
@@ -815,7 +891,7 @@ export interface CreateMenuItemPayload {
 export const createMenuItem = async (
   itemData: CreateMenuItemPayload
 ): Promise<MenuItem> => {
-  const response = await apiClient.post("/admin/menu-items/", itemData);
+  const response = await api.post("/admin/menu-items/", itemData);
   return response.data;
 };
 
@@ -823,7 +899,7 @@ export const updateMenuItem = async (
   id: number,
   itemData: Partial<Omit<MenuItem, "id" | "children">>
 ): Promise<MenuItem> => {
-  const response = await apiClient.patch(
+  const response = await api.patch(
     `/admin/menu-items/${id}/`,
     itemData
   );
@@ -831,7 +907,7 @@ export const updateMenuItem = async (
 };
 
 export const deleteMenuItem = async (id: number): Promise<void> => {
-  await apiClient.delete(`/admin/menu-items/${id}/`);
+  await api.delete(`/admin/menu-items/${id}/`);
 };
 
 export interface ReorderMenuItem {
@@ -842,7 +918,7 @@ export interface ReorderMenuItem {
 export const reorderMenuItems = async (
   menuData: ReorderMenuItem[]
 ): Promise<void> => {
-  await apiClient.post("/admin/menu-items/reorder/", menuData);
+  await api.post("/admin/menu-items/reorder/", menuData);
 };
 
 // --- API de Páginas Institucionales ---
@@ -867,7 +943,7 @@ export interface PaginaInstitucional {
 export const getPaginaInstitucional = async (
   slug: string
 ): Promise<PaginaInstitucional> => {
-  const response = await apiClient.get(
+  const response = await api.get(
     `/paginas-institucionales/${slug}/`
   );
   return response.data;
@@ -876,14 +952,14 @@ export const getPaginaInstitucional = async (
 export const getPaginasInstitucionalesAdmin = async (): Promise<
   PaginatedResponse<PaginaInstitucional>
 > => {
-  const response = await apiClient.get("/paginas-institucionales/");
+  const response = await api.get("/paginas-institucionales/");
   return response.data;
 };
 
 export const createPaginaInstitucional = async (
   data: FormData
 ): Promise<PaginaInstitucional> => {
-  const response = await apiClient.post(
+  const response = await api.post(
     "/paginas-institucionales/",
     data,
     {
@@ -897,7 +973,7 @@ export const updatePaginaInstitucional = async (
   slug: string,
   data: FormData
 ): Promise<PaginaInstitucional> => {
-  const response = await apiClient.patch(
+  const response = await api.patch(
     `/paginas-institucionales/${slug}/`,
     data,
     {
@@ -910,7 +986,7 @@ export const updatePaginaInstitucional = async (
 export const deletePaginaInstitucional = async (
   slug: string
 ): Promise<void> => {
-  await apiClient.delete(`/paginas-institucionales/${slug}/`);
+  await api.delete(`/paginas-institucionales/${slug}/`);
 };
 
 // --- API de Contenido del Municipio ---
@@ -929,7 +1005,7 @@ export const getContenidoPorSeccion = async (
   const params = new URLSearchParams();
   if (seccion) params.append("seccion", seccion);
 
-  const response = await apiClient.get<
+  const response = await api.get<
     PaginatedResponse<ContenidoMunicipio>
   >("/contenido-municipio/", { params });
 
@@ -948,21 +1024,21 @@ export interface GaleriaItem {
 }
 
 export const getGaleriaMedia = async (): Promise<GaleriaItem[]> => {
-  const response = await apiClient.get("/galeria-media/");
+  const response = await api.get("/galeria-media/");
   return response.data;
 };
 
 export const getHomePageComponents = async (): Promise<
   PaginatedResponse<HomePageComponent>
 > => {
-  const response = await apiClient.get("/admin/homepage-components/");
+  const response = await api.get("/admin/homepage-components/");
   return response.data;
 };
 
 export const createHomePageComponent = async (
   componentData: FormData
 ): Promise<HomePageComponent> => {
-  const response = await apiClient.post(
+  const response = await api.post(
     "/admin/homepage-components/",
     componentData,
     {
@@ -976,7 +1052,7 @@ export const updateHomePageComponent = async (
   id: number,
   componentData: FormData
 ): Promise<HomePageComponent> => {
-  const response = await apiClient.patch(
+  const response = await api.patch(
     `/admin/homepage-components/${id}/`,
     componentData,
     {
@@ -989,13 +1065,13 @@ export const updateHomePageComponent = async (
 export const deleteHomePageComponent = async (
   id: number
 ): Promise<void> => {
-  await apiClient.delete(`/admin/homepage-components/${id}/`);
+  await api.delete(`/admin/homepage-components/${id}/`);
 };
 
 export const reorderHomePageComponents = async (
   orderedIds: number[]
 ): Promise<void> => {
-  await apiClient.post("/admin/homepage-components/reorder/", {
+  await api.post("/admin/homepage-components/reorder/", {
     ordered_ids: orderedIds,
   });
 };
@@ -1029,7 +1105,7 @@ export const getAdminPublicaciones = async (
     params.append("es_publicado", String(esPublicado));
   if (searchTerm) params.append("search", searchTerm);
 
-  const response = await apiClient.get("/admin/publicaciones/", {
+  const response = await api.get("/admin/publicaciones/", {
     params,
   });
   return response.data;
@@ -1038,7 +1114,7 @@ export const getAdminPublicaciones = async (
 export const createAdminPublicacion = async (
   data: FormData
 ): Promise<AdminPublicacion> => {
-  const response = await apiClient.post("/admin/publicaciones/", data, {
+  const response = await api.post("/admin/publicaciones/", data, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return response.data;
@@ -1048,7 +1124,7 @@ export const updateAdminPublicacion = async (
   id: number,
   data: FormData
 ): Promise<AdminPublicacion> => {
-  const response = await apiClient.patch(
+  const response = await api.patch(
     `/admin/publicaciones/${id}/`,
     data,
     {
@@ -1061,11 +1137,11 @@ export const updateAdminPublicacion = async (
 export const deleteAdminPublicacion = async (
   id: number
 ): Promise<void> => {
-  await apiClient.delete(`/admin/publicaciones/${id}/`);
+  await api.delete(`/admin/publicaciones/${id}/`);
 };
 
 export const approvePublicacion = async (id: number): Promise<void> => {
-  await apiClient.post(`/admin/publicaciones/${id}/approve/`);
+  await api.post(`/admin/publicaciones/${id}/approve/`);
 };
 
 // --- API de Logs de Auditoría ---
@@ -1082,7 +1158,7 @@ export const getAuditLogs = async (
   if (userId) params.append("user", userId);
   if (action) params.append("action", action);
 
-  const response = await apiClient.get("/admin/audit-logs/", { params });
+  const response = await api.get("/admin/audit-logs/", { params });
   return response.data;
 };
 
@@ -1090,12 +1166,12 @@ export const getAuditLogActionChoices = async (): Promise<
   { value: string; label: string }[]
 > => {
   try {
-    const response = await apiClient.options("/admin/audit-logs/");
+    const response = await api.options("/admin/audit-logs/");
     const choices = response.data?.actions?.action?.choices;
     if (Array.isArray(choices)) return choices;
     return [];
-  } catch (error) {
-    console.error("Error fetching audit log action choices:", error);
+  } catch {
+    console.error("Error fetching audit log action choices:");
     return [];
   }
 };
@@ -1104,45 +1180,34 @@ export const getAuditLogActionChoices = async (): Promise<
 
 export interface StatisticsData {
   summary: {
-    usuarios: {
-      total: number;
-      por_rol: { [key: string]: number };
-    };
-    prestadores: {
-      total: number;
-      aprobados: number;
-      pendientes: number;
-    };
-    artesanos: {
-      total: number;
-      aprobados: number;
-      pendientes: number;
-    };
-    contenido: {
-      publicaciones_total: number;
-      publicaciones_por_tipo: { [key: string]: number };
-      atractivos_total: number;
-    };
-    sistema: {
-      logs_auditoria: number;
-    };
+    usuarios: { total: number; por_rol: { [key: string]: number } };
+    prestadores: { total: number };
+    artesanos: { total: number };
+    publicaciones: { total: number };
+    atractivos: { total: number };
   };
-  time_series: {
-    users: { date: string; count: number }[];
-    publications: { date: string; count: number }[];
-  };
-  query_range: {
-    start_date: string;
-    end_date: string;
-  };
+  form_participation: {
+    formulario_nombre: string;
+    total_respuestas: number;
+    total_objetivo: number;
+    tasa_participacion: number;
+  } | null;
+  compliance_analysis: {
+    item_texto: string;
+    distribucion_actual: { cumplen: number; no_cumplen: number };
+    evolucion_temporal: { ano: number; total_cumplen: number; total_no_cumplen: number }[];
+  } | null;
 }
 
-export const getStatistics = async (startDate?: string, endDate?: string): Promise<StatisticsData> => {
-  const params = new URLSearchParams();
-  if (startDate) params.append('start_date', startDate);
-  if (endDate) params.append('end_date', endDate);
+export const getStatistics = async (params?: {
+  form_id?: number;
+  item_id?: number;
+}): Promise<StatisticsData> => {
+  const searchParams = new URLSearchParams();
+  if (params?.form_id) searchParams.append('form_id', String(params.form_id));
+  if (params?.item_id) searchParams.append('item_id', String(params.item_id));
 
-  const response = await apiClient.get("/admin/statistics/", { params });
+  const response = await api.get("/admin/statistics/detailed/", { params: searchParams });
   return response.data;
 };
 
@@ -1168,17 +1233,17 @@ export interface CaracterizacionEmpresaEventos {
   empleados_mujeres_25_40: number;
   empleados_mujeres_mayor_40: number;
   empleados_lgtbi: number;
-  contratacion_empleados: any; // JSON
-  grupos_especiales_empleados: any; // JSON
+  contratacion_empleados: Record<string, unknown>; // JSON
+  grupos_especiales_empleados: Record<string, unknown>; // JSON
   tiempo_funcionamiento: string;
-  servicios_ofrecidos: any; // JSON
+  servicios_ofrecidos: Record<string, unknown>; // JSON
   forma_prestacion_servicios: string;
   forma_prestacion_servicios_otro: string;
   pertenece_gremio: boolean;
   nombre_gremio: string;
   rutas_servicios: string;
-  nivel_academico_empleados: any; // JSON
-  capacitaciones_recibidas: any[]; // JSON
+  nivel_academico_empleados: Record<string, unknown>; // JSON
+  capacitaciones_recibidas: Record<string, unknown>[]; // JSON
   tiene_certificacion_norma: boolean;
   nombre_certificacion_norma: string;
   ha_participado_ferias: boolean;
@@ -1189,23 +1254,23 @@ export interface CaracterizacionEmpresaEventos {
 export const getCaracterizacionByPrestadorId = async (prestadorId: number): Promise<CaracterizacionEmpresaEventos | null> => {
   try {
     // Asumimos que la API devuelve una lista filtrada, y tomamos el primer elemento.
-    const response = await apiClient.get<CaracterizacionEmpresaEventos[]>(`/caracterizacion/eventos/?prestador=${prestadorId}`);
+    const response = await api.get<CaracterizacionEmpresaEventos[]>(`/caracterizacion/eventos/?prestador=${prestadorId}`);
     return response.data[0] || null;
-  } catch (error) {
+  } catch {
     // Si da 404 u otro error, devolvemos null.
     return null;
   }
 };
 
 export const createCaracterizacion = async (data: FormData): Promise<CaracterizacionEmpresaEventos> => {
-  const response = await apiClient.post<CaracterizacionEmpresaEventos>('/caracterizacion/eventos/', data, {
+  const response = await api.post<CaracterizacionEmpresaEventos>('/caracterizacion/eventos/', data, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return response.data;
 };
 
 export const updateCaracterizacion = async (caracterizacionId: number, data: FormData): Promise<CaracterizacionEmpresaEventos> => {
-  const response = await apiClient.patch<CaracterizacionEmpresaEventos>(`/caracterizacion/eventos/${caracterizacionId}/`, data, {
+  const response = await api.patch<CaracterizacionEmpresaEventos>(`/caracterizacion/eventos/${caracterizacionId}/`, data, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return response.data;

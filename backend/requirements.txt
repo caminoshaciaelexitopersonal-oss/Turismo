@@ -5,6 +5,7 @@ django-cors-headers==4.9.0
 asgiref==3.9.2
 Pillow==11.3.0
 sqlparse==0.5.3
+cryptography==43.0.3
 
 # --- Authentication ---
 django-allauth==65.11.2
@@ -70,9 +71,8 @@ webencodings==0.5.1
 PyYAML==6.0.3
 
 # --- CLI / Tools ---
-pipreqs==0.5.0
+pipreqs>=0.4.13
 yarg==0.1.9
-
 # --- IPython / Dev ---
 ipython==8.12.3
 jedi==0.19.2
@@ -120,3 +120,13 @@ annotated-types==0.7.0
 greenlet==3.2.3
 MarkupSafe==3.0.2
 Jinja2==3.1.6
+drf-nested-routers==0.95.0
+django-modeltranslation==0.19.1
+openpyxl==3.1.2
+
+# --- Producción / Despliegue ---
+gunicorn==22.0.0
+whitenoise==6.7.0
+psycopg2-binary==2.9.9
+dj-database-url==2.2.0
+python-dotenv==1.0.1

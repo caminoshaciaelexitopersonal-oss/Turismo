@@ -5,6 +5,8 @@ import { FaFacebookF, FaInstagram, FaYoutube, FaTwitter } from 'react-icons/fa';
 
 // Interfaz para la configuración del sitio, coincidiendo con el modelo de la API
 interface SiteConfig {
+  nombre_entidad_principal: string;
+  nombre_entidad_secundaria: string;
   direccion: string;
   horario_atencion: string;
   telefono_conmutador: string;
@@ -41,7 +43,8 @@ export default function Footer() {
   useEffect(() => {
     const fetchSiteConfig = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/config/site/');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+        const response = await fetch(`${apiUrl}/config/site-config/`);
         if (!response.ok) {
           throw new Error('Error al cargar la configuración del sitio');
         }
@@ -69,7 +72,7 @@ export default function Footer() {
 
           {/* Columna 1: Información Principal */}
           <div className="md:col-span-2 lg:col-span-2 space-y-4">
-            <h3 className="text-xl font-bold text-white">Alcaldía de Puerto Gaitán</h3>
+            <h3 className="text-xl font-bold text-white">{`${config.nombre_entidad_principal || 'Alcaldía de'} ${config.nombre_entidad_secundaria || 'Puerto Gaitán'}`}</h3>
             <div className="text-sm space-y-2">
                 <p><span className="font-semibold">Dirección:</span> {config.direccion}</p>
                 <p><span className="font-semibold">Horario de atención:</span> {config.horario_atencion}</p>
@@ -112,7 +115,7 @@ export default function Footer() {
                     </a>
                 ))}
             </div>
-            <p className="text-gray-500 text-sm order-1 sm:order-2">&copy; {new Date().getFullYear()} Municipio de Puerto Gaitán. Todos los derechos reservados.</p>
+            <p className="text-gray-500 text-sm order-1 sm:order-2">&copy; {new Date().getFullYear()} {config.nombre_entidad_secundaria || 'Municipio de Puerto Gaitán'}. Todos los derechos reservados.</p>
         </div>
       </div>
     </footer>

@@ -103,12 +103,32 @@ export default function AgentInterface({ isOpen, onClose }: AgentInterfaceProps)
   return (
     <div className="fixed bottom-28 right-8 z-50 w-full max-w-md h-auto bg-white rounded-2xl shadow-2xl flex flex-col border-2 font-sans animate-glowing-border">
       {/* Header */}
-      <header className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 rounded-t-xl">
-        <h2 className="text-lg font-bold text-gray-800">Asistente de IA</h2>
+      <header className="flex items-center justify-between p-4 border-b-2 border-teal-200 bg-teal-50 rounded-t-xl">
+        <h2 className="text-lg font-bold text-teal-800">Asistente Turístico</h2>
         <button onClick={onClose} className="p-2 text-gray-500 rounded-full hover:bg-gray-200 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400" aria-label="Cerrar asistente">
           <FiX className="h-6 w-6" />
         </button>
       </header>
+
+      {/* Mode Selection */}
+      <div className="flex justify-center p-2 border-b border-gray-200 bg-white">
+        <div className="inline-flex rounded-md shadow-sm" role="group">
+          <button
+            type="button"
+            onClick={handleMicClick}
+            className={`px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-l-lg hover:bg-gray-100 focus:z-10 focus:ring-2 focus:ring-blue-500 ${isListening ? 'bg-red-100 text-red-700' : ''}`}
+          >
+            Modo Conversacional
+          </button>
+          <button
+            type="button"
+            className="px-4 py-2 text-sm font-medium text-gray-900 bg-white border-t border-b border-r border-gray-200 rounded-r-md hover:bg-gray-100 focus:z-10 focus:ring-2 focus:ring-blue-500"
+            onClick={() => document.getElementById('chat-input')?.focus()}
+          >
+            Modo Escrito
+          </button>
+        </div>
+      </div>
 
       {/* Message Display Area */}
       <div className="flex-1 p-6 overflow-y-auto h-96 space-y-4">
@@ -133,6 +153,7 @@ export default function AgentInterface({ isOpen, onClose }: AgentInterfaceProps)
       <footer className="p-4 border-t border-gray-200 bg-white rounded-b-2xl">
         <form onSubmit={handleSubmit} className="relative flex items-center">
           <input
+            id="chat-input"
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}

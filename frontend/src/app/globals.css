@@ -27,9 +27,35 @@
   }
 }
 
+/* Animación de vibración para el icono del agente cuando habla */
+@keyframes vibrating {
+  0% { transform: translate(0); }
+  20% { transform: translate(-1px, 1px); }
+  40% { transform: translate(-1px, -1px); }
+  60% { transform: translate(1px, 1px); }
+  80% { transform: translate(1px, -1px); }
+  100% { transform: translate(0); }
+}
+
+/* Animación de borde brillante para el icono de la guacamaya */
+@keyframes glowing-guacamaya {
+  0% {
+    box-shadow: 0 0 7px #2dd4bf, 0 0 10px #2dd4bf; /* teal-400 */
+  }
+  50% {
+    box-shadow: 0 0 14px #5eead4, 0 0 20px #5eead4; /* teal-300 */
+  }
+  100% {
+    box-shadow: 0 0 7px #2dd4bf, 0 0 10px #2dd4bf; /* teal-400 */
+  }
+}
+
+
 @theme {
   --animation-breathing: breathing 4s ease-in-out infinite;
   --animation-glowing-border: glowing-border 3s ease-in-out infinite;
+  --animation-vibrating: vibrating 0.3s linear infinite;
+  --animation-glowing-guacamaya: glowing-guacamaya 2.5s ease-in-out infinite;
 }
 
 :root {

@@ -1,19 +1,16 @@
 from .sargento_base_graph import SargentoGraphBuilder
-from tools.herramientas_funcionario import FuncionarioSoldiers
-from typing import Any
+from tools.herramientas_funcionario import get_funcionario_soldiers
 
-def get_gestion_funcionario_sargento_builder():
+def get_gestion_funcionario_sargento_graph():
     """
-    Returns a builder function for the Funcionario Sargento agent.
+    Construye y devuelve el agente Sargento de Gestión de Funcionarios compilado.
+
+    Este sargento comanda la escuadra de herramientas para las tareas específicas
+    de los roles de funcionario, como la creación de contenido institucional
+    o la revisión de perfiles.
     """
-    def build_sargento_agent(api_client: Any):
-        """Builds the sargento's compiled graph."""
-
-        squad = FuncionarioSoldiers(api_client).get_all_soldiers()
-
-        builder = SargentoGraphBuilder(squad, squad_name="Gestión de Funcionarios")
-        return builder.build_graph()
-
-    print("✅ Doctrina aplicada: Sargento de Gestión de Funcionarios listo para el despliegue.")
-
-    return build_sargento_agent
+    squad = get_funcionario_soldiers()
+    builder = SargentoGraphBuilder(squad, squad_name="Gestión de Funcionarios")
+    sargento_agent = builder.build_graph()
+    print("✅ Doctrina aplicada: Sargento de Gestión de Funcionarios compilado y listo.")
+    return sargento_agent

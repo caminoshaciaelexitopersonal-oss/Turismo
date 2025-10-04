@@ -1,8 +1,7 @@
-'use client';
+ 'use client';
 
 import React, { createContext, useState, useContext, ReactNode, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { useAuth } from './AuthContext';
 
 // --- Type Definitions ---
 interface Message {
@@ -19,7 +18,7 @@ interface AgentContextType {
   isLoading: boolean;
 }
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 // --- Context Creation ---
 const AgentContext = createContext<AgentContextType | undefined>(undefined);
@@ -30,7 +29,9 @@ interface AgentProviderProps {
 }
 
 export function AgentProvider({ children }: AgentProviderProps) {
-  const { token } = useAuth();
+  // Aquí usamos tu token directamente
+  const token = 'ae7df2947b52128f13d81c8716bc9bc0a073151b';
+
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [conversation, setConversation] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,16 +54,13 @@ export function AgentProvider({ children }: AgentProviderProps) {
   };
 
   const pollTaskStatus = (taskId: string) => {
-    stopPolling(); // Ensure no other polling is active
+    stopPolling();
 
     pollingIntervalRef.current = setInterval(async () => {
       try {
-        if (!token) {
-            stopPolling();
-            return;
-        }
+        const headers = { Authorization: `Token ${token}` };
         const response = await axios.get(`${API_BASE_URL}/agent/tasks/${taskId}/`, {
-          headers: { Authorization: `Token ${token}` },
+          headers,
         });
 
         const { status, report } = response.data;
@@ -78,28 +76,29 @@ export function AgentProvider({ children }: AgentProviderProps) {
         addMessage('Hubo un error al verificar el estado de la tarea. Por favor, inténtalo de nuevo.', 'agent');
         setIsLoading(false);
       }
-    }, 3000); // Poll every 3 seconds
+    }, 3000);
   };
 
   const sendCommand = async (command: string) => {
-    if (!command.trim() || !token) {
-        if(!token) addMessage("Necesitas iniciar sesión para usar el asistente.", 'agent');
-        return;
-    };
+    if (!command.trim()) {
+      return;
+    }
 
     addMessage(command, 'user');
     setIsLoading(true);
 
     try {
+      const headers = { Authorization: `Token ${token}` };
+
       const response = await axios.post(
         `${API_BASE_URL}/agent/tasks/`,
         { orden: command },
-        { headers: { Authorization: `Token ${token}` } }
+        { headers }
       );
 
       const { task_id } = response.data;
       if (task_id) {
-        addMessage('Comando recibido. El Coronel está evaluando la situación...', 'agent');
+        addMessage('Comando recibido. El agente está procesando tu solicitud...', 'agent');
         pollTaskStatus(task_id);
       } else {
         throw new Error('No se recibió un ID de tarea del servidor.');
@@ -112,7 +111,6 @@ export function AgentProvider({ children }: AgentProviderProps) {
     }
   };
 
-  // Cleanup polling on component unmount
   useEffect(() => {
     return () => {
       stopPolling();

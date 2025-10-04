@@ -105,7 +105,7 @@ class Command(BaseCommand):
                     'tipo': data['tipo'],
                     'autor': data['autor'],
                     'fecha_publicacion': data['fecha_publicacion'],
-                    'es_publicado': True,
+                    'estado': Publicacion.Status.PUBLICADO,
                 }
             )
             if created:
