@@ -1,6 +1,6 @@
  'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios, { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -20,6 +20,13 @@ export default function RegisterPage() {
 
   const router = useRouter();
 
+  // Reset paisOrigen when origen changes and is not EXTRANJERO
+  useEffect(() => {
+    if (origen !== 'EXTRANJERO') {
+      setPaisOrigen('');
+    }
+  }, [origen]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -30,12 +37,25 @@ export default function RegisterPage() {
       return;
     }
 
+    // --- Validaciones del formulario ---
+    if (role === 'TURISTA') {
+      if (!origen) {
+        setError('Por favor, selecciona tu origen.');
+        return;
+      }
+      if (origen === 'EXTRANJERO' && !paisOrigen) {
+        setError('Por favor, ingresa tu país de origen.');
+        return;
+      }
+    }
+
     setLoading(true);
 
     const endpoint = role === 'TURISTA'
       ? `${API_BASE_URL}/auth/registration/turista/`
       : `${API_BASE_URL}/auth/registration/`;
 
+    // --- Construcción del payload ---
     const payload: Record<string, any> = {
       username: email.split('@')[0] + `_${Math.floor(Math.random() * 10000)}`,
       email,
@@ -44,8 +64,11 @@ export default function RegisterPage() {
     };
 
     if (role === 'TURISTA') {
-      if (origen) payload.origen = origen;
-      if (origen === 'EXTRANJERO' && paisOrigen) payload.pais_origen = paisOrigen;
+      payload.origen = origen;
+      // El país de origen solo se añade si el origen es EXTRANJERO
+      if (origen === 'EXTRANJERO') {
+        payload.pais_origen = paisOrigen;
+      }
     }
 
     try {
