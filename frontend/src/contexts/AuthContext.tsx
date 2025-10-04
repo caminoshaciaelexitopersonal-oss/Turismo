@@ -1,4 +1,4 @@
- 'use client';
+'use client';
 
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -28,7 +28,8 @@ interface User {
 
 // Interfaz para los datos del formulario de registro
 export interface RegisterData {
-  username: string;
+  // Hacemos username opcional aquí para permitir generar uno si no lo proporciona el frontend
+  username?: string;
   email: string;
   password: string;
   password2: string;
@@ -36,7 +37,6 @@ export interface RegisterData {
   origen?: string;
   paisOrigen?: string;
 }
-
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -68,13 +68,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     headers: { "Content-Type": "application/json" },
   });
 
-  // Interceptor para adjuntar token
+  // Interceptor para adjuntar token desde localStorage si existe
   apiClient.interceptors.request.use(
     (config) => {
       if (typeof window !== "undefined") {
         const localToken = localStorage.getItem("authToken");
         if (localToken) {
-          config.headers.Authorization = `Token ${localToken}`;
+          // Aseguramos que headers exista
+          if (!config.headers) config.headers = {};
+          (config.headers as Record<string, string>).Authorization = `Token ${localToken}`;
         }
       }
       return config;
@@ -88,7 +90,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setMfaRequired(false);
     setLoginCredentials(null);
     setSavedItemsMap(new Map());
-    localStorage.removeItem('authToken');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('authToken');
+    }
     router.push('/');
   }, [router]);
 
@@ -98,64 +102,84 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userResponse.data);
 
       if (userResponse.data.role === 'TURISTA') {
+        // Obtener items guardados sólo para turistas
         const savedItemsResponse = await apiClient.get('/mi-viaje/');
-        const itemMap: Map<string, number> = new Map(savedItemsResponse.data.results.map((item: SavedItem) => [`${item.content_type_name}_${item.object_id}`, item.id]));
+        const itemMap: Map<string, number> = new Map(
+          savedItemsResponse.data.results.map((item: SavedItem) => [
+            `${item.content_type_name}_${item.object_id}`,
+            item.id,
+          ])
+        );
         setSavedItemsMap(itemMap);
+      } else {
+        setSavedItemsMap(new Map());
       }
     } catch (error) {
       console.error("Error fetching user data, logging out:", error);
+      // Si falla al obtener datos, forzamos logout para evitar estados inconsistentes
       logout();
     }
-  }, [logout]);
+  }, [apiClient, logout]);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('authToken');
+    // Al montar, verificamos token en localStorage
+    const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
     if (storedToken) {
       setToken(storedToken);
+      // fetchUserData usará el interceptor que lee token de localStorage
       fetchUserData().finally(() => setIsLoading(false));
     } else {
       setIsLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchUserData]);
 
   const completeLogin = async (key: string) => {
     setToken(key);
-    localStorage.setItem('authToken', key);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('authToken', key);
+    }
     setMfaRequired(false);
     setLoginCredentials(null);
 
-    const userResponse = await apiClient.get('/auth/user/', { headers: { Authorization: `Token ${key}` } });
-    const userData: User = userResponse.data;
-    setUser(userData);
+    // Obtener user con el token recién guardado (el interceptor lo incluirá)
+    try {
+      const userResponse = await apiClient.get('/auth/user/');
+      const userData: User = userResponse.data;
+      setUser(userData);
 
-    if (userData.role === 'TURISTA') {
-      await fetchUserData();
-      router.push('/mi-viaje');
-    } else {
-      router.push('/dashboard');
+      if (userData.role === 'TURISTA') {
+        await fetchUserData();
+        router.push('/mi-viaje');
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (err) {
+      console.error("Error al completar login:", err);
+      // Si algo sale mal al recuperar user, limpiamos credenciales
+      logout();
     }
   };
 
   const login = async (identifier: string, password: string) => {
     try {
       const payload = {
-        username: identifier, // El backend espera 'username', que puede ser email o usuario.
+        username: identifier, // El backend puede aceptar email o username aquí
         password,
       };
 
       const response = await apiClient.post('/auth/login/', payload);
 
-      if (response.data.key) {
+      if (response.data?.key) {
         await completeLogin(response.data.key);
       } else {
-        // Si no hay 'key', se asume que se requiere MFA
+        // Si backend no devuelve key, asumimos MFA requerido y guardamos credenciales temporales
         setMfaRequired(true);
         setLoginCredentials({ identifier, password });
       }
     } catch (err: unknown) {
       console.error("Login failed:", err);
       if (axios.isAxiosError(err) && err.response) {
-        // Extraer mensaje de error del backend si está disponible
         const errorMsg = err.response.data?.non_field_errors?.[0] || 'El usuario o la contraseña son incorrectos.';
         throw new Error(errorMsg);
       }
@@ -177,10 +201,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const response = await apiClient.post('/auth/login/', payload);
 
-      if (response.data.key) {
+      if (response.data?.key) {
         await completeLogin(response.data.key);
       } else {
-        // Si el backend no devuelve una llave, es un error inesperado en este punto
         throw new Error('Respuesta inesperada del servidor durante la verificación MFA.');
       }
     } catch (err: unknown) {
@@ -199,6 +222,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const toggleSaveItem = async (contentType: string, objectId: number) => {
     if (!user || user.role !== 'TURISTA') {
+      // Redirigir a login si intenta guardar sin ser turista autenticado
       alert("Necesitas iniciar sesión como turista para guardar favoritos.");
       router.push('/login');
       return;
@@ -213,15 +237,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         await apiClient.post('/mi-viaje/', { content_type: contentType, object_id: objectId });
       }
+      // Refrescar lista guardada
       await fetchUserData();
-    } catch(error) {
+    } catch (error) {
       console.error("Error al guardar/eliminar el elemento:", error);
       alert("Hubo un error al procesar tu solicitud.");
     }
   };
 
   const register = async (data: RegisterData) => {
-    let endpoint = '/auth/registration/'; // Default para Prestador
+    // Elegimos endpoint según rol
+    let endpoint = '/auth/registration/'; // default
     if (data.role === 'TURISTA') {
       endpoint = '/auth/registration/turista/';
     } else if (data.role === 'ARTESANO') {
@@ -237,15 +263,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       pais_origen?: string;
     }
 
+    // Si frontend no provee username, generamos uno seguro a partir del email
+    const generatedUsername = `${data.email.split('@')[0]}${Math.floor(Math.random() * 10000)}`;
+
     const payload: RegisterPayload = {
-      username: data.username,
+      username: data.username && data.username.trim().length > 0 ? data.username.trim() : generatedUsername,
       email: data.email,
       password: data.password,
       password2: data.password2,
     };
 
     if (data.role === 'TURISTA') {
-      payload.origen = data.origen;
+      if (data.origen) payload.origen = data.origen;
       if (data.origen === 'EXTRANJERO' && data.paisOrigen) {
         payload.pais_origen = data.paisOrigen;
       }
@@ -256,14 +285,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (err: unknown) {
       console.error("Registration failed:", err);
       if (axios.isAxiosError(err) && err.response) {
+        // Re-lanzamos el objeto de error del backend para que el llamador lo procese
         throw err.response.data;
       }
       throw new Error('No se pudo conectar al servidor. Inténtalo de nuevo.');
     }
   };
 
-
-  const value = {
+  const value: AuthContextType = {
     isAuthenticated: !!token,
     user,
     token,
