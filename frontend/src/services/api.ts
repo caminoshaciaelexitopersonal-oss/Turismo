@@ -44,8 +44,11 @@ export interface AdminUser {
 
 export interface SiteConfiguration {
   id: number;
-  site_name: string;
-  maintenance_mode: boolean;
+  nombre_entidad_principal: string;
+  nombre_entidad_secundaria: string;
+  nombre_secretaria: string;
+  nombre_direccion: string;
+  logo_url: string | null;
   seccion_publicaciones_activa: boolean;
   seccion_atractivos_activa: boolean;
   seccion_prestadores_activa: boolean;
@@ -103,7 +106,10 @@ export interface PrestadorPublico {
   email_contacto?: string;
   red_social_facebook?: string;
   red_social_instagram?: string;
+  red_social_tiktok?: string;
   red_social_whatsapp?: string;
+  latitud?: number | null;
+  longitud?: number | null;
 }
 
 export interface RubroArtesano {
@@ -123,7 +129,10 @@ export interface ArtesanoPublico {
   email_contacto?: string;
   red_social_facebook?: string;
   red_social_instagram?: string;
+  red_social_tiktok?: string;
   red_social_whatsapp?: string;
+  latitud?: number | null;
+  longitud?: number | null;
 }
 
 export interface ImagenArtesano {
