@@ -3,8 +3,8 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
-// La URL base de la API
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 interface SavedItem {
@@ -26,12 +26,10 @@ interface User {
     | 'TURISTA';
 }
 
-// Interfaz para los datos del formulario de registro
 export interface RegisterData {
-  // Hacemos username opcional aquí para permitir generar uno si no lo proporciona el frontend
   username?: string;
   email: string;
-  password: string;
+  password1: string;
   password2: string;
   role: 'TURISTA' | 'PRESTADOR' | 'ARTESANO';
   origen?: string;
@@ -68,13 +66,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     headers: { "Content-Type": "application/json" },
   });
 
-  // Interceptor para adjuntar token desde localStorage si existe
   apiClient.interceptors.request.use(
     (config) => {
       if (typeof window !== "undefined") {
         const localToken = localStorage.getItem("authToken");
         if (localToken) {
-          // Aseguramos que headers exista
           if (!config.headers) config.headers = {};
           (config.headers as Record<string, string>).Authorization = `Token ${localToken}`;
         }
@@ -100,9 +96,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const userResponse = await apiClient.get('/auth/user/');
       setUser(userResponse.data);
-
       if (userResponse.data.role === 'TURISTA') {
-        // Obtener items guardados sólo para turistas
         const savedItemsResponse = await apiClient.get('/mi-viaje/');
         const itemMap: Map<string, number> = new Map(
           savedItemsResponse.data.results.map((item: SavedItem) => [
@@ -116,22 +110,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Error fetching user data, logging out:", error);
-      // Si falla al obtener datos, forzamos logout para evitar estados inconsistentes
       logout();
     }
   }, [apiClient, logout]);
 
   useEffect(() => {
-    // Al montar, verificamos token en localStorage
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
     if (storedToken) {
       setToken(storedToken);
-      // fetchUserData usará el interceptor que lee token de localStorage
       fetchUserData().finally(() => setIsLoading(false));
     } else {
       setIsLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchUserData]);
 
   const completeLogin = async (key: string) => {
@@ -141,13 +131,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     setMfaRequired(false);
     setLoginCredentials(null);
-
-    // Obtener user con el token recién guardado (el interceptor lo incluirá)
     try {
       const userResponse = await apiClient.get('/auth/user/');
       const userData: User = userResponse.data;
       setUser(userData);
-
+      toast.success(`¡Bienvenido, ${userData.username}!`);
       if (userData.role === 'TURISTA') {
         await fetchUserData();
         router.push('/mi-viaje');
@@ -156,34 +144,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err) {
       console.error("Error al completar login:", err);
-      // Si algo sale mal al recuperar user, limpiamos credenciales
       logout();
     }
   };
 
   const login = async (identifier: string, password: string) => {
     try {
+      const isEmail = identifier.includes('@');
       const payload = {
-        username: identifier, // El backend puede aceptar email o username aquí
         password,
+        ...(isEmail ? { email: identifier } : { username: identifier }),
       };
-
       const response = await apiClient.post('/auth/login/', payload);
-
       if (response.data?.key) {
         await completeLogin(response.data.key);
       } else {
-        // Si backend no devuelve key, asumimos MFA requerido y guardamos credenciales temporales
         setMfaRequired(true);
         setLoginCredentials({ identifier, password });
       }
     } catch (err: unknown) {
       console.error("Login failed:", err);
-      if (axios.isAxiosError(err) && err.response) {
-        const errorMsg = err.response.data?.non_field_errors?.[0] || 'El usuario o la contraseña son incorrectos.';
-        throw new Error(errorMsg);
+      if (process.env.NODE_ENV === 'production') {
+        toast.error("Ocurrió un error. Por favor verifica tus datos e intenta nuevamente.");
+      } else {
+        if (axios.isAxiosError(err) && err.response) {
+          const errorMsg = err.response.data?.non_field_errors?.[0] || 'El usuario o la contraseña son incorrectos.';
+          toast.error(`Error de Login (dev): ${errorMsg}`);
+        } else {
+          toast.error("Error de conexión (dev).");
+        }
       }
-      throw new Error('No se pudo conectar al servidor. Inténtalo de nuevo.');
+      throw err;
     }
   };
 
@@ -191,16 +182,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!loginCredentials?.identifier) {
       throw new Error('No se encontraron credenciales para la verificación MFA.');
     }
-
     try {
       const payload = {
         username: loginCredentials.identifier,
         password: loginCredentials.password,
         code,
       };
-
       const response = await apiClient.post('/auth/login/', payload);
-
       if (response.data?.key) {
         await completeLogin(response.data.key);
       } else {
@@ -222,22 +210,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const toggleSaveItem = async (contentType: string, objectId: number) => {
     if (!user || user.role !== 'TURISTA') {
-      // Redirigir a login si intenta guardar sin ser turista autenticado
       alert("Necesitas iniciar sesión como turista para guardar favoritos.");
       router.push('/login');
       return;
     }
-
     const itemKey = `${contentType}_${objectId}`;
     const savedItemId = savedItemsMap.get(itemKey);
-
     try {
       if (savedItemId) {
         await apiClient.delete(`/mi-viaje/${savedItemId}/`);
       } else {
         await apiClient.post('/mi-viaje/', { content_type: contentType, object_id: objectId });
       }
-      // Refrescar lista guardada
       await fetchUserData();
     } catch (error) {
       console.error("Error al guardar/eliminar el elemento:", error);
@@ -246,49 +230,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const register = async (data: RegisterData) => {
-    // Elegimos endpoint según rol
-    let endpoint = '/auth/registration/'; // default
+    let endpoint = '/auth/registration/';
     if (data.role === 'TURISTA') {
       endpoint = '/auth/registration/turista/';
     } else if (data.role === 'ARTESANO') {
       endpoint = '/auth/registration/artesano/';
     }
-
-    interface RegisterPayload {
-      username: string;
-      email: string;
-      password: string;
-      password2: string;
-      origen?: string;
-      pais_origen?: string;
-    }
-
-    // Si frontend no provee username, generamos uno seguro a partir del email
-    const generatedUsername = `${data.email.split('@')[0]}${Math.floor(Math.random() * 10000)}`;
-
-    const payload: RegisterPayload = {
-      username: data.username && data.username.trim().length > 0 ? data.username.trim() : generatedUsername,
+    const payload = {
+      username: data.username || `${data.email.split('@')[0]}${Math.floor(Math.random() * 10000)}`,
       email: data.email,
-      password: data.password,
+      password1: data.password1,
       password2: data.password2,
+      origen: data.origen,
+      pais_origen: data.paisOrigen,
     };
-
-    if (data.role === 'TURISTA') {
-      if (data.origen) payload.origen = data.origen;
-      if (data.origen === 'EXTRANJERO' && data.paisOrigen) {
-        payload.pais_origen = data.paisOrigen;
-      }
-    }
-
     try {
       await apiClient.post(endpoint, payload);
+      toast.success("¡Registro exitoso! Ahora puedes iniciar sesión.");
     } catch (err: unknown) {
       console.error("Registration failed:", err);
-      if (axios.isAxiosError(err) && err.response) {
-        // Re-lanzamos el objeto de error del backend para que el llamador lo procese
-        throw err.response.data;
+      if (process.env.NODE_ENV === 'production') {
+        toast.error("Ocurrió un error. Por favor verifica tus datos e intenta nuevamente.");
+      } else {
+        if (axios.isAxiosError(err) && err.response?.data) {
+          const errors = err.response.data;
+          const errorMessages = Object.entries(errors).map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`);
+          toast.error(`Error de Registro (dev): ${errorMessages.join(' ')}`, { autoClose: 10000 });
+        } else {
+          toast.error("Error de conexión o respuesta inesperada (dev).");
+        }
       }
-      throw new Error('No se pudo conectar al servidor. Inténtalo de nuevo.');
+      throw err;
     }
   };
 
