@@ -9,87 +9,106 @@ test.describe('Dashboard E2E Flow', () => {
     password: 'adminpassword',
   };
 
+  // Definir una estructura de menú de prueba para el mock de la API
+  const MOCK_MENU_DATA = [
+    {
+      title: 'Principal',
+      links: [
+        { href: '/dashboard/analytics', label: 'Resumen', icon: 'FiHome', allowedRoles: ['ADMIN', 'PRESTADOR', 'ARTESANO'] },
+        { href: '/dashboard/estadisticas', label: 'Estadísticas', icon: 'FiBarChart2', allowedRoles: ['ADMIN'] },
+      ],
+    },
+    {
+      title: 'Gestión',
+      links: [
+        { href: '/dashboard/usuarios', label: 'Usuarios', icon: 'FiUsers', allowedRoles: ['ADMIN'] },
+        { href: '/dashboard/publicaciones', label: 'Publicaciones', icon: 'FiFileText', allowedRoles: ['ADMIN'] },
+      ],
+    },
+  ];
+
   // Antes de cada prueba, realizar el inicio de sesión
   test.beforeEach(async ({ page }) => {
-    // 1. Navegar a la página de login
+    // 1. Mockear la respuesta de la API para el menú
+    await page.route('**/api/config/menu-items/', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_MENU_DATA),
+      });
+    });
+
+    // 2. Navegar a la página de login
     await page.goto('/login');
 
-    // 2. Rellenar el formulario de inicio de sesión
+    // 3. Rellenar el formulario de inicio de sesión
     await page.getByLabel('Usuario o Email').fill(TEST_USER.username);
     await page.getByLabel('Contraseña').fill(TEST_USER.password);
 
-    // 3. Hacer clic en el botón para iniciar sesión
+    // 4. Hacer clic en el botón para iniciar sesión
     await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
 
-    // 4. Esperar a que la URL cambie al dashboard, indicando un login exitoso
+    // 5. Esperar a que la URL cambie al dashboard, indicando un login exitoso
     await expect(page).toHaveURL('/dashboard', { timeout: 10000 });
   });
 
   // Prueba principal: verificar la carga del menú y la navegación
-  test('should load sidebar menu and navigate to a page', async ({ page }) => {
-    // 1. Verificar que el Sidebar es visible después de iniciar sesión
+  test('should load sidebar menu and navigate views', async ({ page }) => {
+    // 1. Verificar que el Sidebar es visible y muestra el menú mockeado
     const sidebar = page.locator('aside');
     await expect(sidebar).toBeVisible();
+    await expect(sidebar.getByText('Principal')).toBeVisible();
+    await expect(sidebar.getByText('Gestión')).toBeVisible();
 
-    // 2. Verificar que el esqueleto de carga desaparece y el menú real aparece
-    // Esperamos a que aparezca un elemento que solo se renderiza con datos reales.
-    await expect(sidebar.getByText('SITYC')).toBeVisible({ timeout: 15000 }); // El título del Sidebar
-    await expect(sidebar.getByText('Principal')).toBeVisible(); // Una sección del menú
+    // 2. Hacer clic en la sección "Gestión" para expandirla
+    await sidebar.getByRole('button', { name: 'Gestión' }).click();
 
-    // 3. Hacer clic en la sección "Administración" para expandirla
-    await sidebar.getByRole('button', { name: 'Administración' }).click();
+    // 3. Hacer clic en el botón "Publicaciones"
+    // Usamos getByRole('button') porque nuestros enlaces de navegación son botones
+    const publicationsButton = sidebar.getByRole('button', { name: 'Publicaciones' });
+    await expect(publicationsButton).toBeVisible();
+    await publicationsButton.click();
 
-    // 4. Hacer clic en el enlace "Gestión de Formularios"
-    const formManagementLink = sidebar.getByRole('link', { name: 'Gestión de Formularios' });
-    await expect(formManagementLink).toBeVisible();
-    await formManagementLink.click();
-
-    // 5. Verificar que la navegación a la página de formularios fue exitosa
-    await expect(page).toHaveURL('/dashboard/formularios');
-
-    // 6. Verificar que el contenido de la página de destino se ha cargado correctamente
-    // Buscamos el encabezado principal de la página de gestión de formularios.
-    const mainContentHeader = page.getByRole('heading', { name: 'Gestión de Formularios' });
+    // 4. Verificar que el contenido principal se ha actualizado
+    // NO verificamos la URL, sino el contenido que se renderiza
+    const mainContentHeader = page.getByRole('heading', { name: 'Gestión de Publicaciones' });
     await expect(mainContentHeader).toBeVisible();
 
-    // 7. (Opcional) Tomar una captura de pantalla para verificación visual
-    await page.screenshot({ path: 'test-results/dashboard-formularios-page.png' });
+    // 5. Tomar una captura de pantalla para verificación visual
+    await page.screenshot({ path: 'test-results/dashboard-publications-view.png' });
   });
 
   // Prueba de responsividad: verificar que el menú hamburguesa funciona en móviles
-  test('should show hamburger menu on mobile and allow navigation', async ({ page }) => {
+  test('should show hamburger menu on mobile and allow view navigation', async ({ page }) => {
     // 1. Emular un viewport de móvil
     await page.setViewportSize({ width: 375, height: 812 });
 
-    // 2. El sidebar principal no debería ser visible directamente
-    const desktopSidebar = page.locator('aside.hidden.lg\\:flex');
-    await expect(desktopSidebar).not.toBeVisible();
-
-    // 3. Encontrar y hacer clic en el botón de hamburguesa usando su aria-label
+    // 2. Encontrar y hacer clic en el botón de hamburguesa
     const hamburgerButton = page.getByLabel('Toggle menu');
     await expect(hamburgerButton).toBeVisible();
     await hamburgerButton.click();
 
-    // 4. El sidebar móvil (drawer) ahora debería ser visible
-    const mobileSidebar = page.locator('div.lg\\:hidden.fixed.inset-0.z-50');
+    // 3. El sidebar móvil (drawer) ahora debería ser visible
+    // Lo localizamos por su `role="dialog"` que añadimos por accesibilidad
+    const mobileSidebar = page.getByRole('dialog');
     await expect(mobileSidebar).toBeVisible();
+    await expect(mobileSidebar).toHaveClass(/translate-x-0/);
 
-    // 5. Navegar a una página desde el menú móvil
-    // Asegurarse de que la sección "Administración" es visible y hacer clic
-    const adminSection = mobileSidebar.getByRole('button', { name: 'Administración' });
-    await expect(adminSection).toBeVisible();
-    await adminSection.click();
+    // 4. Navegar a una vista desde el menú móvil
+    await mobileSidebar.getByRole('button', { name: 'Gestión' }).click();
+    await mobileSidebar.getByRole('button', { name: 'Usuarios' }).click();
 
-    // Hacer clic en el enlace "Gestión de Usuarios" que ahora está visible
-    const userManagementLink = mobileSidebar.getByRole('link', { name: 'Gestión de Usuarios' });
-    await expect(userManagementLink).toBeVisible();
-    await userManagementLink.click();
+    // 5. Verificar que el contenido principal se ha actualizado
+    const mainContentHeader = page.getByRole('heading', { name: 'Gestión de Usuarios y Roles' });
+    await expect(mainContentHeader).toBeVisible();
 
-    // 6. Verificar la navegación exitosa a la página correcta
-    await expect(page).toHaveURL('/dashboard/usuarios');
-    await expect(page.getByRole('heading', { name: 'Gestión de Usuarios' })).toBeVisible();
+    // 6. El sidebar móvil debería cerrarse tras la navegación (o podemos cerrarlo manualmente)
+    // En este caso, al hacer clic, el estado cambia y el drawer se cierra.
+    // La clase de transformación debería volver a `-translate-x-full`.
+    // Damos un pequeño tiempo para que la transición CSS ocurra.
+    await expect(mobileSidebar).toHaveClass(/.*-translate-x-full/);
 
-    // 7. (Opcional) Tomar una captura de la vista móvil para verificación
-    await page.screenshot({ path: 'test-results/dashboard-mobile-navigation.png' });
+    // 7. Tomar una captura de la vista móvil para verificación
+    await page.screenshot({ path: 'test-results/dashboard-mobile-users-view.png' });
   });
 });
