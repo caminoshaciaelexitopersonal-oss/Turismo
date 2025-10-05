@@ -487,3 +487,48 @@ class DetailedStatisticsView(views.APIView):
     permission_classes = [IsAdmin]
     def get(self, request, *args, **kwargs):
         return Response({"message": "Datos de estadísticas detalladas."})
+
+class ExportExcelView(views.APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request, *args, **kwargs):
+        return Response(
+            {"error": "Esta funcionalidad aún no está implementada."},
+            status=status.HTTP_501_NOT_IMPLEMENTED
+        )
+
+class ImagenArtesanoDetailView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        return Response(
+            {"error": "Esta funcionalidad aún no está implementada."},
+            status=status.HTTP_501_NOT_IMPLEMENTED
+        )
+
+class ImagenArtesanoDetailView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        return Response(
+            {"error": "Esta funcionalidad aún no está implementada."},
+            status=status.HTTP_501_NOT_IMPLEMENTED
+        )
+
+class ImagenGaleriaDetailView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        return Response(
+            {"error": "Esta funcionalidad aún no está implementada."},
+            status=status.HTTP_501_NOT_IMPLEMENTED
+        )
+
+class ImagenGaleriaDetailView(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        return Response(
+            {"error": "Esta funcionalidad aún no está implementada."},
+            status=status.HTTP_501_NOT_IMPLEMENTED
+        )

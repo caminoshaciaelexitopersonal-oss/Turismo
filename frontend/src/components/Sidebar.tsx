@@ -1,201 +1,111 @@
 "use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  FiHome,
-  FiUsers,
-  FiFileText,
-  FiMapPin,
-  FiSettings,
-  FiBarChart2,
-  FiShield,
-  FiFolder,
-  FiAward,
-  FiCamera,
-  FiEdit,
-  FiChevronDown,
-  FiChevronRight
-} from 'react-icons/fi';
-import React, { useState } from 'react';
+import { FiChevronDown, FiChevronRight, FiAlertCircle } from 'react-icons/fi';
+import React, { useState, useEffect, useCallback } from 'react';
+import api from '@/lib/api';
+import { useDashboard } from '@/contexts/DashboardContext'; // Importar el hook del contexto
 
-// Interfaz para los enlaces de navegación
-interface NavLink {
-  href: string;
+// --- Definición de Tipos y Componentes Internos ---
+
+export interface NavLink {
+  href: string; // Se usará como identificador de la vista
   label: string;
   icon: React.ElementType;
   allowedRoles: string[];
 }
 
-// Interfaz para las secciones del menú
-interface NavSection {
+export interface NavSection {
   title: string;
   links: NavLink[];
 }
 
-// Definición de todos los enlaces y sus permisos
-const navSections: NavSection[] = [
-    {
-    title: 'Principal',
-    links: [
-      { 
-        href: '/dashboard', 
-        label: 'Inicio', 
-        icon: FiHome, 
-        allowedRoles: ['ADMIN', 'FUNCIONARIO_DIRECTIVO', 'FUNCIONARIO_PROFESIONAL', 'PRESTADOR', 'ARTESANO'] 
-      },
-      { 
-        href: '/dashboard/estadisticas', 
-        label: 'Estadísticas', 
-        icon: FiBarChart2, 
-        allowedRoles: ['ADMIN', 'FUNCIONARIO_DIRECTIVO'] 
-      },
-      {
-        href: '/dashboard/analytics',
-        label: 'Análisis de Datos',
-        icon: FiBarChart2,
-        allowedRoles: ['ADMIN', 'FUNCIONARIO_DIRECTIVO', 'FUNCIONARIO_PROFESIONAL']
-      },
-    ],
-  },
-  {
-    title: 'Mi Perfil',
-    links: [
-      { 
-        href: '/dashboard/mis-formularios', 
-        label: 'Mis Formularios', 
-        icon: FiFileText, 
-        allowedRoles: ['PRESTADOR', 'ARTESANO'] 
-      },
-      { 
-        href: '/dashboard/mi-puntuacion', 
-        label: 'Mi Puntuación', 
-        icon: FiAward, 
-        allowedRoles: ['PRESTADOR', 'ARTESANO'] 
-      },
-      { 
-        href: '/dashboard/mi-galeria', 
-        label: 'Mi Galería', 
-        icon: FiCamera, 
-        allowedRoles: ['PRESTADOR', 'ARTESANO'] 
-      },
-    ],
-  },
-  {
-    title: 'Gestión de Contenido',
-    links: [
-      { 
-        href: '/dashboard/publicaciones', 
-        label: 'Publicaciones', 
-        icon: FiFileText, 
-        allowedRoles: ['ADMIN', 'FUNCIONARIO_DIRECTIVO', 'FUNCIONARIO_PROFESIONAL'] 
-      },
-      { 
-        href: '/dashboard/atractivos', 
-        label: 'Atractivos Turísticos', 
-        icon: FiMapPin, 
-        allowedRoles: ['ADMIN', 'FUNCIONARIO_DIRECTIVO', 'FUNCIONARIO_PROFESIONAL'] 
-      },
-    ],
-  },
-  {
-    title: 'Gestión de Directorios',
-    links: [
-      { 
-        href: '/dashboard/directorios', 
-        label: 'Prestadores y Artesanos', 
-        icon: FiFolder, 
-        allowedRoles: ['ADMIN', 'FUNCIONARIO_DIRECTIVO', 'FUNCIONARIO_PROFESIONAL'] 
-      },
-    ],
-  },
-  {
-    title: 'Administración',
-    links: [
-      { 
-        href: '/dashboard/usuarios', 
-        label: 'Gestión de Usuarios', 
-        icon: FiUsers, 
-        allowedRoles: ['ADMIN', 'FUNCIONARIO_DIRECTIVO'] 
-      },
-      { 
-        href: '/dashboard/formularios', 
-        label: 'Gestión de Formularios', 
-        icon: FiEdit, 
-        allowedRoles: ['ADMIN', 'FUNCIONARIO_DIRECTIVO', 'FUNCIONARIO_PROFESIONAL'] 
-      },
-      { 
-        href: '/dashboard/verificacion', 
-        label: 'Verificación', 
-        icon: FiShield, 
-        allowedRoles: ['ADMIN', 'FUNCIONARIO_DIRECTIVO', 'FUNCIONARIO_PROFESIONAL'] 
-      },
-      { 
-        href: '/dashboard/configuracion', 
-        label: 'Configuración del Sitio', 
-        icon: FiSettings, 
-        allowedRoles: ['ADMIN'] 
-      },
-    ],
-  },
-];
+import {
+  FiHome, FiUsers, FiFileText, FiMapPin, FiSettings, FiBarChart2,
+  FiShield, FiFolder, FiAward, FiCamera, FiEdit
+} from 'react-icons/fi';
 
+// Mapeo de strings de iconos a componentes de React Icons
+const iconMap: { [key: string]: React.ElementType } = {
+  FiHome, FiUsers, FiFileText, FiMapPin, FiSettings, FiBarChart2,
+  FiShield, FiFolder, FiAward, FiCamera, FiEdit
+};
+
+// Componente para el estado de carga (esqueleto)
+const SidebarSkeleton = () => (
+  <div className="p-4 animate-pulse">
+    <div className="h-8 bg-gray-200 rounded-md w-3/4 mb-6"></div>
+    <div className="space-y-4">
+      {[...Array(4)].map((_, i) => (
+        <div key={i}>
+          <div className="h-6 bg-gray-200 rounded-md w-1/2 mb-3"></div>
+          <div className="space-y-2 pl-4">
+            <div className="h-5 bg-gray-200 rounded-md w-5/6"></div>
+            <div className="h-5 bg-gray-200 rounded-md w-4/6"></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// Componente para un enlace individual en el menú, ahora es un botón
 const SidebarLink = ({ link }: { link: NavLink }) => {
-  const pathname = usePathname();
-  const isActive = pathname === link.href;
+  const { activeView, setActiveView } = useDashboard();
+  const isActive = activeView === link.href;
+  const Icon = typeof link.icon === 'string' ? iconMap[link.icon] : link.icon;
 
   return (
-    <Link
-      href={link.href}
-      className={`flex items-center pl-10 pr-4 py-2.5 text-sm font-medium rounded-lg transition-colors
+    <button
+      onClick={() => setActiveView(link.href)}
+      className={`w-full flex items-center pl-10 pr-4 py-2.5 text-sm font-medium rounded-lg transition-colors text-left
         ${isActive
           ? 'bg-blue-100 text-blue-700'
           : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
         }`}
     >
-      <link.icon className="mr-3 h-5 w-5" />
-      {link.label}
-    </Link>
+      {Icon && <Icon className="mr-3 h-5 w-5 flex-shrink-0" />}
+      <span className="truncate">{link.label}</span>
+    </button>
   );
 };
 
+// Componente para una sección de navegación colapsable
 const CollapsibleNavSection = ({ section, userRole }: { section: NavSection; userRole: string }) => {
+  const { activeView } = useDashboard();
   const [isOpen, setIsOpen] = useState(false);
-  const pathname = usePathname();
 
+  // Filtrar enlaces permitidos para el rol del usuario
   const filteredLinks = section.links.filter(link =>
     link.allowedRoles.includes(userRole)
   );
 
-  // La sección es activa si una de sus rutas hijas está activa
-  const isSectionActive = filteredLinks.some(link => pathname.startsWith(link.href));
+  // Determinar si la sección está activa (contiene la vista activa)
+  const isSectionActive = filteredLinks.some(link => activeView === link.href);
 
-  // La sección debe estar abierta por defecto si está activa
-  useState(() => {
+  // Expandir la sección por defecto si está activa
+  useEffect(() => {
     if (isSectionActive) {
       setIsOpen(true);
     }
-  });
+  }, [isSectionActive]);
 
   if (filteredLinks.length === 0) {
-    return null;
+    return null; // No renderizar la sección si no hay enlaces permitidos
   }
 
   return (
     <div>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium text-left rounded-lg transition-colors
+        className={`flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium text-left rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500
           ${isSectionActive
             ? 'bg-gray-100 text-gray-900'
             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
           }`}
+        aria-expanded={isOpen}
       >
-        <span className="flex items-center">
-          {/* Opcional: Podríamos añadir un ícono a la sección aquí */}
-          {section.title}
-        </span>
+        <span className="font-semibold">{section.title}</span>
         {isOpen ? <FiChevronDown className="h-5 w-5" /> : <FiChevronRight className="h-5 w-5" />}
       </button>
       {isOpen && (
@@ -210,23 +120,72 @@ const CollapsibleNavSection = ({ section, userRole }: { section: NavSection; use
 };
 
 
+// --- Componente Principal del Sidebar ---
+
 export default function Sidebar() {
   const { user } = useAuth();
-  const userRole = user?.role;
+  const [navSections, setNavSections] = useState<NavSection[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!userRole) {
-    return null;
+  const loadMenu = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Usar el cliente de API para obtener los datos del menú del backend
+      const response = await api.get<NavSection[]>('/menu/');
+      setNavSections(response.data);
+    } catch (err) {
+      console.error("Error al cargar el menú desde la API:", err);
+      setError("No se pudo conectar con el servidor para cargar el menú.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMenu();
+  }, [loadMenu]);
+
+  // Si el usuario no está cargado, no mostrar nada
+  if (!user) {
+    return <SidebarSkeleton />;
   }
 
-  return (
-    <aside className="w-64 flex-shrink-0 bg-white border-r border-gray-200 p-4">
-      <div className="flex flex-col h-full">
-        <nav className="flex-1 space-y-2">
-          {navSections.map((section) => (
-            <CollapsibleNavSection key={section.title} section={section} userRole={userRole} />
-          ))}
-        </nav>
+  // Estado de carga
+  if (isLoading) {
+    return <SidebarSkeleton />;
+  }
+
+  // Estado de error
+  if (error) {
+    return (
+      <div className="p-4 text-center text-red-600">
+        <FiAlertCircle className="mx-auto h-8 w-8 mb-2" />
+        <p className="text-sm font-medium">Error al cargar el menú</p>
+        <p className="text-xs text-gray-500 mb-4">{error}</p>
+        <button
+          onClick={loadMenu}
+          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          Reintentar
+        </button>
       </div>
+    );
+  }
+
+  // Estado exitoso: renderizar el menú
+  return (
+    <aside className="w-64 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
+      <div className="p-4 border-b">
+        <h2 className="text-xl font-bold text-gray-800 truncate">SITYC</h2>
+        <p className="text-sm text-gray-500 truncate" title={user.email}>{user.username}</p>
+      </div>
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        {navSections.map((section) => (
+          <CollapsibleNavSection key={section.title} section={section} userRole={user.role} />
+        ))}
+      </nav>
     </aside>
   );
 }
