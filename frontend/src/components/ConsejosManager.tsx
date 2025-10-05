@@ -120,7 +120,6 @@ export default function ConsejosManager() {
       const data = await getConsejosLocales();
       setConsejos(data);
     } catch {
-      console.error('No se pudo cargar la lista de consejos locales.');
       setError('No se pudo cargar la lista de consejos locales.');
     }
   }, []);
@@ -149,7 +148,6 @@ export default function ConsejosManager() {
       fetchConsejos();
       handleCloseModal();
     } catch {
-      console.error('Error al guardar el consejo local.');
       setError('Error al guardar el consejo local.');
     }
   };
@@ -160,7 +158,6 @@ export default function ConsejosManager() {
         await deleteConsejoLocal(id);
         fetchConsejos();
       } catch {
-        console.error('Error al eliminar el consejo.');
         setError('Error al eliminar el consejo.');
       }
     }

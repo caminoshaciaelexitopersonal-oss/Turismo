@@ -30,7 +30,6 @@ export default function PublicacionManager() {
       setPublicaciones(data.results);
     } catch (err) {
       setError('No se pudieron cargar las publicaciones.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }

@@ -61,7 +61,6 @@ export default function RutasTuristicasPage() {
         setError(null);
       } catch (err) {
         setError('No se pudieron cargar las rutas turísticas. Por favor, inténtalo de nuevo más tarde.');
-        console.error(err);
       } finally {
         setLoading(false);
       }

@@ -16,7 +16,6 @@ export default async function ExplorarPage() {
       </div>
     );
   } catch (error) {
-    console.error("Error al obtener los prestadores de servicios:", error);
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <h1 className="text-3xl font-bold text-red-600 mb-4">Error al cargar la oferta turística</h1>

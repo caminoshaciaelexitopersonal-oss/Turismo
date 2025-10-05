@@ -41,7 +41,6 @@ export default async function HistoriaCulturaPage() {
     // El slug 'historia-cultura' debe coincidir con el que se creó en el admin
     pageData = await getPaginaInstitucional('historia-cultura');
   } catch (e) {
-    console.error(e);
     error =
       'No se pudo cargar el contenido de la página. Es posible que aún no se haya creado en el panel de administración.';
   }

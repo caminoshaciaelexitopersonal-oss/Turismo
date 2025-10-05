@@ -76,7 +76,6 @@ export default function AuditLogViewer() {
         const actionsResponse = await getAuditLogActionChoices();
         setActionChoices(actionsResponse);
       } catch (err) {
-        console.error("Error cargando datos para los filtros:", err);
       }
     };
     fetchFilterData();

@@ -55,7 +55,6 @@ export default function AgentInterface({ isOpen, onClose }: AgentInterfaceProps)
         recognition.onstart = () => setIsListening(true);
         recognition.onend = () => setIsListening(false);
         recognition.onerror = (event) => {
-            console.error('Error en el reconocimiento de voz:', event.error);
             setIsListening(false);
         };
 

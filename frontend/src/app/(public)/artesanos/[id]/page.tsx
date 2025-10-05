@@ -36,7 +36,6 @@ const ArtesanoDetailPage = () => {
           setArtesano(data);
         } catch (err) {
           setError('No se pudo encontrar al artesano. Es posible que el enlace no sea válido.');
-          console.error(err);
         } finally {
           setIsLoading(false);
         }

@@ -34,7 +34,9 @@ const NotificationBell = () => {
             setNotifications(data);
             setUnreadCount(data.filter((n: Notificacion) => !n.leido).length);
           })
-          .catch(console.error);
+          .catch(err => {
+            // Silently fail on background refresh to avoid interrupting the user.
+          });
       };
 
       fetchNotifications();
@@ -50,7 +52,7 @@ const NotificationBell = () => {
       setNotifications(notifications.map(n => ({ ...n, leido: true })));
       setUnreadCount(0);
     } catch (error) {
-      console.error("Error marking notifications as read:", error);
+      // Silently fail, or show a non-intrusive toast notification
     }
   };
 

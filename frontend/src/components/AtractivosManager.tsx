@@ -32,11 +32,10 @@ const AtractivosManager: React.FC = () => {
         const formDetail = await getFormularioDetalle(formInfo.id);
         setCaracterizacionForm(formDetail);
       } else {
-        console.warn("No se encontró el formulario de caracterización de atractivos.");
+        // No se hace nada si el formulario no se encuentra, es un estado válido.
       }
     } catch (err) {
       setError('No se pudieron cargar los datos necesarios.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }

@@ -56,7 +56,6 @@ export default function MapComponent() {
   useEffect(() => {
     axios.get(`${API_BASE_URL}/locations/`)
       .then(response => setLocations(response.data))
-      .catch(error => console.error("Error fetching locations:", error));
   }, []);
 
   const handleFilterToggle = (tipo: string) => {

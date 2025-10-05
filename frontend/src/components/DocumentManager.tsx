@@ -56,7 +56,6 @@ export default function DocumentManager({ initialDocuments, onUpdate }: Document
       setDocName('');
     } catch (err) {
       setError('Error al subir el documento.');
-      console.error(err);
     } finally {
       setIsUploading(false);
     }
@@ -73,7 +72,6 @@ export default function DocumentManager({ initialDocuments, onUpdate }: Document
       onUpdate();
     } catch (err) {
       alert('Error al eliminar el documento.');
-      console.error(err);
     }
   };
 

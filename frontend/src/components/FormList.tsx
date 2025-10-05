@@ -47,7 +47,6 @@ const FormList = ({ onFillForm }: FormListProps) => {
         setError(null);
       } catch (err) {
         setError('No se pudieron cargar los formularios disponibles.');
-        console.error(err);
       } finally {
         setIsLoading(false);
       }

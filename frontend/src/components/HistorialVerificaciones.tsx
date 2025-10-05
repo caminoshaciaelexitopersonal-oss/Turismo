@@ -17,7 +17,6 @@ const HistorialVerificaciones: React.FC = () => {
             const data = await getVerificaciones();
             setVerificaciones(data);
         } catch (err) {
-            console.error("Error al cargar el historial de verificaciones:", err);
             setError("No se pudo cargar su historial. Por favor, intente más tarde.");
         } finally {
             setIsLoading(false);

@@ -35,7 +35,6 @@ const ArtesanosContent = () => {
         setRubros(rubrosData);
         setArtesanos(artesanosData);
       } catch (err) {
-        console.error("Error al cargar datos:", err);
         setError('Error al cargar los datos. Por favor, inténtelo más tarde.');
       } finally {
         setIsLoading(false);
@@ -50,7 +49,6 @@ const ArtesanosContent = () => {
       const artesanoDetails = await getArtesanoById(artesanoId);
       setSelectedArtesano(artesanoDetails);
     } catch (error) {
-      console.error("Error al cargar detalles del artesano:", error);
       setError('No se pudieron cargar los detalles del artesano.');
     } finally {
       setIsModalLoading(false);

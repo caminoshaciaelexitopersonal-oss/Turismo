@@ -44,7 +44,6 @@ export default function PublicacionDetailPage() {
           setPublicacion(response.data);
         } catch (err) {
           setError('No se pudo encontrar la publicación.');
-          console.error(err);
         } finally {
           setIsLoading(false);
         }

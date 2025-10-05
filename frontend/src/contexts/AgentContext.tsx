@@ -71,7 +71,6 @@ export function AgentProvider({ children }: AgentProviderProps) {
           setIsLoading(false);
         }
       } catch (error) {
-        console.error('Error durante el sondeo de la tarea:', error);
         stopPolling();
         addMessage('Hubo un error al verificar el estado de la tarea. Por favor, inténtalo de nuevo.', 'agent');
         setIsLoading(false);
@@ -105,7 +104,6 @@ export function AgentProvider({ children }: AgentProviderProps) {
       }
 
     } catch (error) {
-      console.error("Error al contactar al agente:", error);
       addMessage("Lo siento, no pude enviar tu comando al centro de mando en este momento.", 'agent');
       setIsLoading(false);
     }

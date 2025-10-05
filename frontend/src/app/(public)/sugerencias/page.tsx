@@ -42,7 +42,6 @@ const SugerenciasPage = () => {
       });
     } catch (err) {
       setError('Hubo un error al enviar tu mensaje. Por favor, inténtalo de nuevo.');
-      console.error(err);
     } finally {
       setIsSubmitting(false);
     }

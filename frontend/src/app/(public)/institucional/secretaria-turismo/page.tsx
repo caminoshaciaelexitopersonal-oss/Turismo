@@ -41,7 +41,6 @@ export default async function SecretariaTurismoPage() {
     // El slug 'secretaria-turismo' debe coincidir con el que se cree en el admin
     pageData = await getPaginaInstitucional('secretaria-turismo');
   } catch (e) {
-    console.error(e);
     error =
       'No se pudo cargar el contenido de la página. Es posible que aún no se haya creado en el panel de administración.';
   }

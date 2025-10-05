@@ -39,7 +39,6 @@ const VerificacionManager: React.FC = () => {
             setPlantillas(plantillasData);
             setPrestadores(prestadoresData.map(p => ({ id: p.id, nombre_negocio: p.nombre_negocio })));
         } catch (err) {
-            console.error("Error al cargar los datos iniciales:", err);
             setError("No se pudieron cargar los datos. Por favor, intente de nuevo más tarde.");
         } finally {
             setIsLoading(false);
@@ -62,7 +61,6 @@ const VerificacionManager: React.FC = () => {
             setActiveVerificacion(nuevaVerificacion);
             setView('form');
         } catch (err) {
-            console.error("Error al iniciar la verificación:", err);
             setError("No se pudo iniciar la verificación. Verifique los datos e intente de nuevo.");
         } finally {
             setIsSubmitting(false);

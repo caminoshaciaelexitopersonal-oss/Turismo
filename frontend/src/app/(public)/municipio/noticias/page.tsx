@@ -46,7 +46,6 @@ const NoticiasPage = () => {
         setNoticias(data || []);
       } catch (err) {
         setError('No se pudieron cargar las noticias. Por favor, intente más tarde.');
-        console.error(err);
       } finally {
         setIsLoading(false);
       }

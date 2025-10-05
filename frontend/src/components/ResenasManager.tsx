@@ -16,7 +16,7 @@ const ResenasManager = () => {
       const response = await getAdminResenas(aprobada);
       setResenas(response.results);
     } catch (err) {
-      console.error('No se pudo cargar la lista de reseñas.', err);
+      // Error is handled by showing an empty list.
     } finally {
       setIsLoading(false);
     }

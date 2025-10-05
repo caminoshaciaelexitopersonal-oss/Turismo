@@ -102,7 +102,6 @@ const AdminProviderManager: React.FC<AdminProviderManagerProps> = ({ providerId,
       const response = await apiClient.get(`/admin/${providerType}/${providerId}/`);
       setProvider(response.data);
     } catch (error) {
-      console.error(`Error fetching ${providerType} details:`, error);
       toast.error(`No se pudo cargar el perfil.`);
       onClose();
     } finally {
@@ -132,7 +131,6 @@ const AdminProviderManager: React.FC<AdminProviderManagerProps> = ({ providerId,
       onUpdate(); // Recargar la lista en la página principal
       setActiveTab('details'); // Volver a la vista de detalles
     } catch (error) {
-      console.error(`Error saving ${providerType}:`, error);
       toast.update(toastId, { render: "Error al guardar los cambios", type: "error", isLoading: false, autoClose: 3000 });
     } finally {
       setIsSaving(false);

@@ -52,7 +52,6 @@ const ArtesanosManager = () => {
       setArtesanos(response.data.results || response.data); // Adapt to paginated or non-paginated response
     } catch (err) {
       setError('No se pudo cargar la lista de artesanos.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -76,7 +75,6 @@ const ArtesanosManager = () => {
       fetchArtesanos(); // Refresh the list
     } catch (err) {
       setError('Error al aprobar el artesano.');
-      console.error(err);
     }
   };
 

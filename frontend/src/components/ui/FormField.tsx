@@ -1,11 +1,12 @@
 import React from 'react';
-import { FieldValues, UseFormRegister, FieldErrors, Path } from 'react-hook-form';
+import { FieldValues, UseFormRegister, FieldErrors, Path, RegisterOptions } from 'react-hook-form';
 
 interface FormFieldProps<T extends FieldValues> extends React.InputHTMLAttributes<HTMLInputElement> {
   name: Path<T>;
   label: string;
   register: UseFormRegister<T>;
   errors: FieldErrors<T>;
+  validation?: RegisterOptions<T, Path<T>>;
 }
 
 const FormField = <T extends FieldValues>({
@@ -14,9 +15,26 @@ const FormField = <T extends FieldValues>({
   register,
   errors,
   type = 'text',
+  required,
+  validation = {},
   ...props
 }: FormFieldProps<T>) => {
   const error = errors[name];
+
+  const registerOptions: RegisterOptions<T, Path<T>> = {
+    ...validation,
+  };
+
+  if (required) {
+    registerOptions.required = 'Este campo es obligatorio';
+  }
+
+  if (type === 'email') {
+    registerOptions.pattern = {
+      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+      message: 'Por favor, introduce una dirección de correo electrónico válida',
+    };
+  }
 
   return (
     <div>
@@ -26,7 +44,7 @@ const FormField = <T extends FieldValues>({
       <input
         id={name}
         type={type}
-        {...register(name)}
+        {...register(name, registerOptions)}
         {...props}
         className={`block w-full px-3 py-2 mt-1 placeholder-gray-400 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm ${
           error ? 'border-red-500' : 'border-gray-300'

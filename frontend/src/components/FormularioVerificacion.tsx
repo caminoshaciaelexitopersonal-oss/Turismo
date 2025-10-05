@@ -48,7 +48,6 @@ const FormularioVerificacion: React.FC<FormularioVerificacionProps> = ({ verific
             alert('Verificación guardada con éxito. El puntaje del prestador ha sido actualizado.');
             onSuccess();
         } catch (err) {
-            console.error("Error al guardar la verificación:", err);
             setError("Ocurrió un error al guardar la verificación. Por favor, intente de nuevo.");
         } finally {
             setIsSubmitting(false);
