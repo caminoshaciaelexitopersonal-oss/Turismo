@@ -1,11 +1,11 @@
 "use client";
 
 import React from 'react';
-import FormManager from '@/components/FormManager';
+import VerificacionManager from '@/components/VerificacionManager';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
-export default function GestionFormulariosPage() {
+export default function VerificacionPage() {
   const { user, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
 
@@ -16,7 +16,6 @@ export default function GestionFormulariosPage() {
     } else if (!isLoading && user) {
       const allowedRoles = ['ADMIN', 'FUNCIONARIO_DIRECTIVO', 'FUNCIONARIO_PROFESIONAL'];
       if (!allowedRoles.includes(user.role.toUpperCase())) {
-        // Si el rol no está permitido, redirigir al dashboard principal
         router.push('/dashboard');
       }
     }
@@ -34,14 +33,14 @@ export default function GestionFormulariosPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-3xl font-bold text-gray-900">Gestión de Formularios</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Centro de Verificación</h1>
         <p className="mt-2 text-lg text-gray-600">
-          Crea, edita y administra los formularios de caracterización del sistema.
+          Revisa y aprueba las solicitudes de verificación de prestadores y artesanos.
         </p>
       </header>
 
       <div className="bg-white p-4 sm:p-6 lg:p-8 rounded-2xl shadow-lg">
-        <FormManager />
+        <VerificacionManager />
       </div>
     </div>
   );

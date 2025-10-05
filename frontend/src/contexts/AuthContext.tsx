@@ -2,10 +2,9 @@
 
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
 import { toast } from 'react-toastify';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+import api from '@/lib/api'; // Importar la instancia centralizada de Axios
+import axios from 'axios'; // Importar axios solo para el type guard isAxiosError
 
 interface SavedItem {
   id: number;
@@ -61,25 +60,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [savedItemsMap, setSavedItemsMap] = useState<Map<string, number>>(new Map());
   const router = useRouter();
 
-  const apiClient = axios.create({
-    baseURL: API_BASE_URL,
-    headers: { "Content-Type": "application/json" },
-  });
-
-  apiClient.interceptors.request.use(
-    (config) => {
-      if (typeof window !== "undefined") {
-        const localToken = localStorage.getItem("authToken");
-        if (localToken) {
-          if (!config.headers) config.headers = {};
-          (config.headers as Record<string, string>).Authorization = `Token ${localToken}`;
-        }
-      }
-      return config;
-    },
-    (error) => Promise.reject(error)
-  );
-
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);
@@ -89,15 +69,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('authToken');
     }
-    router.push('/');
-  }, [router]);
+    // La redirección se manejará en las páginas o layouts que lo requieran.
+  }, []);
 
   const fetchUserData = useCallback(async () => {
     try {
-      const userResponse = await apiClient.get('/auth/user/');
+      const userResponse = await api.get('/auth/user/');
       setUser(userResponse.data);
       if (userResponse.data.role === 'TURISTA') {
-        const savedItemsResponse = await apiClient.get('/mi-viaje/');
+        const savedItemsResponse = await api.get('/mi-viaje/');
         const itemMap: Map<string, number> = new Map(
           savedItemsResponse.data.results.map((item: SavedItem) => [
             `${item.content_type_name}_${item.object_id}`,
@@ -112,17 +92,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error fetching user data, logging out:", error);
       logout();
     }
-  }, [apiClient, logout]);
+  }, [logout]);
 
   useEffect(() => {
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
     if (storedToken) {
       setToken(storedToken);
-      fetchUserData().finally(() => setIsLoading(false));
+      // La clave es que fetchUserData ahora es estable y no causa un bucle
+      fetchUserData().finally(() => {
+        setIsLoading(false);
+      });
     } else {
       setIsLoading(false);
     }
-  }, [fetchUserData]);
+  }, [fetchUserData]); // Este useEffect ahora se ejecuta solo una vez si el token existe
 
   const completeLogin = async (key: string) => {
     setToken(key);
@@ -132,13 +115,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setMfaRequired(false);
     setLoginCredentials(null);
 
+    setIsLoading(true); // Indicar que estamos cargando datos del usuario
     try {
-      const userResponse = await apiClient.get('/auth/user/');
+      // No es necesario llamar a apiClient.get('/auth/user/') aquí,
+      // porque fetchUserData() ya lo hace.
+      await fetchUserData();
+
+      // La redirección debe basarse en los datos frescos del usuario
+      // Para ello, necesitamos acceder al estado actualizado del usuario.
+      // Dado que `fetchUserData` actualiza el estado `user`,
+      // podemos confiar en que un re-render posterior manejará la redirección.
+      // O podemos obtener los datos directamente y usarlos.
+
+      const userResponse = await api.get('/auth/user/');
       const userData: User = userResponse.data;
-      setUser(userData);
+      setUser(userData); // Actualizar el usuario una vez más para asegurar consistencia
+
       toast.success(`¡Bienvenido, ${userData.username}!`);
       if (userData.role === 'TURISTA') {
-        await fetchUserData();
         router.push('/mi-viaje');
       } else {
         router.push('/dashboard');
@@ -146,6 +140,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error("Error al completar login:", err);
       logout();
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -156,7 +152,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         password,
         ...(isEmail ? { email: identifier } : { username: identifier }),
       };
-      const response = await apiClient.post('/auth/login/', payload);
+      const response = await api.post('/auth/login/', payload);
       if (response.data?.key) {
         await completeLogin(response.data.key);
       } else {
@@ -189,7 +185,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         password: loginCredentials.password,
         code,
       };
-      const response = await apiClient.post('/auth/login/', payload);
+      const response = await api.post('/auth/login/', payload);
       if (response.data?.key) {
         await completeLogin(response.data.key);
       } else {
@@ -211,7 +207,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const toggleSaveItem = async (contentType: string, objectId: number) => {
     if (!user || user.role !== 'TURISTA') {
-      alert("Necesitas iniciar sesión como turista para guardar favoritos.");
+      toast.warn("Necesitas iniciar sesión como turista para guardar favoritos.");
       router.push('/login');
       return;
     }
@@ -219,14 +215,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const savedItemId = savedItemsMap.get(itemKey);
     try {
       if (savedItemId) {
-        await apiClient.delete(`/mi-viaje/${savedItemId}/`);
+        await api.delete(`/mi-viaje/${savedItemId}/`);
+        toast.success("Elemento eliminado de tu viaje.");
       } else {
-        await apiClient.post('/mi-viaje/', { content_type: contentType, object_id: objectId });
+        await api.post('/mi-viaje/', { content_type: contentType, object_id: objectId });
+        toast.success("Elemento añadido a tu viaje.");
       }
+      // Volver a cargar los datos del usuario para actualizar la lista de guardados
       await fetchUserData();
     } catch (error) {
       console.error("Error al guardar/eliminar el elemento:", error);
-      alert("Hubo un error al procesar tu solicitud.");
+      toast.error("Hubo un error al procesar tu solicitud.");
     }
   };
 
@@ -241,15 +240,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const payload = {
       username: data.username || `${data.email.split('@')[0]}${Math.floor(Math.random() * 10000)}`,
       email: data.email,
-      password1: data.password1,
+      password: data.password1, // Corregido para ser compatible con dj-rest-auth
       password2: data.password2,
       origen: data.origen,
       pais_origen: data.paisOrigen,
     };
 
     try {
-      await apiClient.post(endpoint, payload);
-      toast.success("¡Registro exitoso! Ahora puedes iniciar sesión.");
+      await api.post(endpoint, payload);
+      toast.success("¡Registro exitoso! Por favor, revisa tu correo para verificar tu cuenta antes de iniciar sesión.");
     } catch (err: unknown) {
       console.error("Registration failed:", err);
       if (process.env.NODE_ENV === 'production') {
