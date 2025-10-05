@@ -388,7 +388,17 @@ class ImagenGaleriaView(generics.ListCreateAPIView):
     serializer_class = ImagenGaleriaSerializer
     permission_classes = [IsAuthenticated]
 
+class ImagenGaleriaDetailView(generics.RetrieveDestroyAPIView):
+    queryset = ImagenGaleria.objects.all()
+    serializer_class = ImagenGaleriaSerializer
+    permission_classes = [IsAuthenticated]
+
 class ImagenArtesanoView(generics.ListCreateAPIView):
+    queryset = ImagenArtesano.objects.all()
+    serializer_class = ImagenArtesanoSerializer
+    permission_classes = [IsAuthenticated]
+
+class ImagenArtesanoDetailView(generics.RetrieveDestroyAPIView):
     queryset = ImagenArtesano.objects.all()
     serializer_class = ImagenArtesanoSerializer
     permission_classes = [IsAuthenticated]
@@ -487,3 +497,10 @@ class DetailedStatisticsView(views.APIView):
     permission_classes = [IsAdmin]
     def get(self, request, *args, **kwargs):
         return Response({"message": "Datos de estadísticas detalladas."})
+
+class ExportExcelView(views.APIView):
+    permission_classes = [IsAdmin]
+    def get(self, request, *args, **kwargs):
+        # Esta es una vista placeholder para evitar errores de arranque.
+        # La lógica de exportación real se implementará en el futuro.
+        return Response({"message": "La exportación a Excel aún no está implementada."}, status=status.HTTP_501_NOT_IMPLEMENTED)

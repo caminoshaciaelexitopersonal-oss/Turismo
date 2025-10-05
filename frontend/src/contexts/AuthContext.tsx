@@ -18,7 +18,7 @@ interface User {
   username: string;
   email: string;
   role:
-    | 'ADMIN'
+    | 'ADMINISTRADOR'
     | 'FUNCIONARIO_DIRECTIVO'
     | 'FUNCIONARIO_PROFESIONAL'
     | 'PRESTADOR'
@@ -26,14 +26,42 @@ interface User {
     | 'TURISTA';
 }
 
+export type Role =
+  | 'TURISTA'
+  | 'PRESTADOR'
+  | 'ARTESANO'
+  | 'ADMINISTRADOR'
+  | 'FUNCIONARIO_DIRECTIVO'
+  | 'FUNCIONARIO_PROFESIONAL';
+
 export interface RegisterData {
   username?: string;
   email: string;
   password1: string;
   password2: string;
-  role: 'TURISTA' | 'PRESTADOR' | 'ARTESANO';
-  origen?: string;
-  paisOrigen?: string;
+  role: Role;
+  // Turista
+  origen?: 'LOCAL' | 'REGIONAL' | 'NACIONAL' | 'EXTRANJERO' | '';
+  pais_origen?: string;
+  // Prestador
+  nombre_establecimiento?: string;
+  rnt?: string;
+  tipo_servicio?: string;
+  // Artesano
+  nombre_taller?: string;
+  tipo_artesania?: string;
+  material_principal?: string;
+  // Administrador
+  cargo?: string;
+  dependencia_asignada?: string;
+  nivel_acceso?: string;
+  // Funcionario Directivo
+  dependencia?: string;
+  nivel_direccion?: string;
+  area_funcional?: string;
+  // Funcionario Profesional
+  profesion?: string;
+  area_asignada?: string;
 }
 
 interface AuthContextType {
@@ -140,6 +168,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (userData.role === 'TURISTA') {
         await fetchUserData();
         router.push('/mi-viaje');
+      } else if (userData.role === 'ADMINISTRADOR') {
+        router.push('/admin/panel');
+      } else if (userData.role === 'PRESTADOR') {
+        router.push('/dashboard/prestador');
+      } else if (userData.role === 'ARTESANO') {
+        router.push('/dashboard/artesano');
+      } else if (userData.role === 'FUNCIONARIO_DIRECTIVO') {
+        router.push('/dashboard/directivo');
+      } else if (userData.role === 'FUNCIONARIO_PROFESIONAL') {
+        router.push('/dashboard/profesional');
       } else {
         router.push('/dashboard');
       }
@@ -231,21 +269,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const register = async (data: RegisterData) => {
-    let endpoint = '/auth/registration/';
-    if (data.role === 'TURISTA') {
-      endpoint = '/auth/registration/turista/';
-    } else if (data.role === 'ARTESANO') {
-      endpoint = '/auth/registration/artesano/';
-    }
+    const roleEndpointMap: Record<Role, string> = {
+      TURISTA: '/auth/registration/turista/',
+      PRESTADOR: '/auth/registration/prestador/',
+      ARTESANO: '/auth/registration/artesano/',
+      ADMINISTRADOR: '/auth/registration/administrador/',
+      FUNCIONARIO_DIRECTIVO: '/auth/registration/funcionario_directivo/',
+      FUNCIONARIO_PROFESIONAL: '/auth/registration/funcionario_profesional/',
+    };
 
-    const payload = {
+    const endpoint = roleEndpointMap[data.role] || '/auth/registration/';
+
+    const basePayload = {
       username: data.username || `${data.email.split('@')[0]}${Math.floor(Math.random() * 10000)}`,
       email: data.email,
       password1: data.password1,
       password2: data.password2,
-      origen: data.origen,
-      pais_origen: data.paisOrigen,
+      role: data.role,
     };
+
+    const roleSpecificPayloads: Partial<RegisterData> = {};
+    switch (data.role) {
+      case 'TURISTA':
+        Object.assign(roleSpecificPayloads, { origen: data.origen, pais_origen: data.pais_origen });
+        break;
+      case 'PRESTADOR':
+        Object.assign(roleSpecificPayloads, { nombre_establecimiento: data.nombre_establecimiento, rnt: data.rnt, tipo_servicio: data.tipo_servicio });
+        break;
+      case 'ARTESANO':
+        Object.assign(roleSpecificPayloads, { nombre_taller: data.nombre_taller, tipo_artesania: data.tipo_artesania, material_principal: data.material_principal });
+        break;
+      case 'ADMINISTRADOR':
+        Object.assign(roleSpecificPayloads, { cargo: data.cargo, dependencia_asignada: data.dependencia_asignada, nivel_acceso: data.nivel_acceso });
+        break;
+      case 'FUNCIONARIO_DIRECTIVO':
+        Object.assign(roleSpecificPayloads, { dependencia: data.dependencia, nivel_direccion: data.nivel_direccion, area_funcional: data.area_funcional });
+        break;
+      case 'FUNCIONARIO_PROFESIONAL':
+        Object.assign(roleSpecificPayloads, { dependencia: data.dependencia, profesion: data.profesion, area_asignada: data.area_asignada });
+        break;
+    }
+
+    const payload = { ...basePayload, ...roleSpecificPayloads };
 
     try {
       await apiClient.post(endpoint, payload);

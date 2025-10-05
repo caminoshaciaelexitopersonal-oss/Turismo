@@ -7,4 +7,6 @@ class ApiConfig(AppConfig):
 
     def ready(self):
         # Importar las señales para que se registren correctamente en la aplicación
-        import api.signals
+        # Se comenta temporalmente para evitar cuelgues del servidor durante el desarrollo y las pruebas.
+        # import api.signals
+        pass

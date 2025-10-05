@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { faker } from '@faker-js/faker';
 
-test.describe('Verificación de Notificaciones Toast de Error', () => {
+test.describe('Error Toast Notification Verification', () => {
 
-  test('debería mostrar un toast con el error del backend al fallar el registro', async ({ page }) => {
+  test('should display toast with backend error on registration failure', async ({ page }) => {
     await page.goto('http://localhost:3000/registro');
 
     // Llenar el formulario con datos válidos, excepto por el email
