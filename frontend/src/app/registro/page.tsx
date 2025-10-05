@@ -6,12 +6,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { RegisterData } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import FormField from '@/components/ui/FormField'; // Importar el componente reutilizable
+import FormField from '@/components/ui/FormField';
+import { toast } from 'react-toastify';
 
 type FormErrors = {
-  [key in keyof RegisterData]?: string;
-} & {
-  general?: string;
+  [key: string]: string[];
 };
 
 export default function RegisterPage() {
@@ -31,56 +30,50 @@ export default function RegisterPage() {
   });
 
   const [success, setSuccess] = useState<string | null>(null);
-  const [generalError, setGeneralError] = useState<string | null>(null);
 
   const role = watch('role');
   const origen = watch('origen');
 
   const onSubmit: SubmitHandler<RegisterData> = async (data) => {
     setSuccess(null);
-    setGeneralError(null);
 
-    if (data.password !== data.password2) {
+    if (data.password1 !== data.password2) {
       setError('password2', {
         type: 'manual',
         message: 'Las contraseñas no coinciden.',
       });
+      toast.error('Las contraseñas no coinciden.');
       return;
     }
 
     try {
       await registerUser(data);
+      // El toast de éxito ya se maneja en el AuthContext
       setSuccess('¡Registro exitoso! Serás redirigido para iniciar sesión.');
       setTimeout(() => router.push('/login'), 3000);
     } catch (err: unknown) {
       const errorData = err as FormErrors;
-      let hasFieldErrors = false;
 
       if (typeof errorData === 'object' && errorData !== null) {
+        // Lógica para mostrar errores en los campos del formulario
         for (const key in errorData) {
-          const fieldName = key as keyof RegisterData;
-          if (Object.prototype.hasOwnProperty.call(data, fieldName)) {
-            setError(fieldName, {
-              type: 'manual',
-              message: Array.isArray(errorData[fieldName])
-                ? errorData[fieldName]![0]
-                : String(errorData[fieldName]),
-            });
-            hasFieldErrors = true;
+          if (Object.prototype.hasOwnProperty.call(data, key)) {
+            const fieldName = key as keyof RegisterData;
+            const message = Array.isArray(errorData[fieldName]) ? errorData[fieldName]![0] : String(errorData[fieldName]);
+            setError(fieldName, { type: 'manual', message });
           }
         }
 
-        if (errorData.non_field_errors) {
-          setGeneralError(
-            Array.isArray(errorData.non_field_errors)
-              ? errorData.non_field_errors.join(', ')
-              : String(errorData.non_field_errors)
-          );
-        } else if (!hasFieldErrors) {
-          setGeneralError('Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
-        }
+        // Lógica unificada para mostrar el toast de error
+        const errorMessages = Object.entries(errorData).map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`);
+        const displayMessage = process.env.NODE_ENV === 'production'
+          ? "Ocurrió un error. Por favor verifica tus datos e intenta nuevamente."
+          : `Error de Registro (dev): ${errorMessages.join(' ')}`;
+
+        toast.error(displayMessage, { autoClose: 10000 });
+
       } else {
-        setGeneralError('Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
+         toast.error('Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
       }
     }
   };
@@ -93,11 +86,6 @@ export default function RegisterPage() {
         {success && (
           <div className="p-4 text-green-800 bg-green-100 border border-green-200 rounded-md">
             {success}
-          </div>
-        )}
-        {generalError && (
-          <div className="p-4 text-red-800 bg-red-100 border border-red-200 rounded-md">
-            {generalError}
           </div>
         )}
 
@@ -122,7 +110,7 @@ export default function RegisterPage() {
           />
 
           <FormField
-            name="password"
+            name="password1"
             label="Contraseña"
             type="password"
             register={register}

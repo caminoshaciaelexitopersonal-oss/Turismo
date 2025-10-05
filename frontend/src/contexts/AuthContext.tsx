@@ -3,8 +3,8 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
-// La URL base de la API
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 interface SavedItem {
@@ -26,11 +26,10 @@ interface User {
     | 'TURISTA';
 }
 
-// Interfaz para los datos del formulario de registro
 export interface RegisterData {
   username?: string;
   email: string;
-  password1: string; // Corregido de 'password' a 'password1'
+  password1: string;
   password2: string;
   role: 'TURISTA' | 'PRESTADOR' | 'ARTESANO';
   origen?: string;
@@ -67,7 +66,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     headers: { "Content-Type": "application/json" },
   });
 
-  // Interceptor para adjuntar token desde localStorage si existe
   apiClient.interceptors.request.use(
     (config) => {
       if (typeof window !== "undefined") {
@@ -98,7 +96,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const userResponse = await apiClient.get('/auth/user/');
       setUser(userResponse.data);
-
       if (userResponse.data.role === 'TURISTA') {
         const savedItemsResponse = await apiClient.get('/mi-viaje/');
         const itemMap: Map<string, number> = new Map(
@@ -139,7 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const userResponse = await apiClient.get('/auth/user/');
       const userData: User = userResponse.data;
       setUser(userData);
-
+      toast.success(`¡Bienvenido, ${userData.username}!`);
       if (userData.role === 'TURISTA') {
         await fetchUserData();
         router.push('/mi-viaje');
@@ -159,9 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         password,
         ...(isEmail ? { email: identifier } : { username: identifier }),
       };
-
       const response = await apiClient.post('/auth/login/', payload);
-
       if (response.data?.key) {
         await completeLogin(response.data.key);
       } else {
@@ -170,11 +165,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err: unknown) {
       console.error("Login failed:", err);
-      if (axios.isAxiosError(err) && err.response) {
-        const errorMsg = err.response.data?.non_field_errors?.[0] || 'El usuario o la contraseña son incorrectos.';
-        throw new Error(errorMsg);
+      if (process.env.NODE_ENV === 'production') {
+        toast.error("Ocurrió un error. Por favor verifica tus datos e intenta nuevamente.");
+      } else {
+        if (axios.isAxiosError(err) && err.response) {
+          const errorMsg = err.response.data?.non_field_errors?.[0] || 'El usuario o la contraseña son incorrectos.';
+          toast.error(`Error de Login (dev): ${errorMsg}`);
+        } else {
+          toast.error("Error de conexión (dev).");
+        }
       }
-      throw new Error('No se pudo conectar al servidor. Inténtalo de nuevo.');
+      throw err;
     }
   };
 
@@ -182,16 +183,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!loginCredentials?.identifier) {
       throw new Error('No se encontraron credenciales para la verificación MFA.');
     }
-
     try {
       const payload = {
         username: loginCredentials.identifier,
         password: loginCredentials.password,
         code,
       };
-
       const response = await apiClient.post('/auth/login/', payload);
-
       if (response.data?.key) {
         await completeLogin(response.data.key);
       } else {
@@ -217,10 +215,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       router.push('/login');
       return;
     }
-
     const itemKey = `${contentType}_${objectId}`;
     const savedItemId = savedItemsMap.get(itemKey);
-
     try {
       if (savedItemId) {
         await apiClient.delete(`/mi-viaje/${savedItemId}/`);
@@ -245,7 +241,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const payload = {
       username: data.username || `${data.email.split('@')[0]}${Math.floor(Math.random() * 10000)}`,
       email: data.email,
-      password1: data.password1, // Corregido
+      password1: data.password1,
       password2: data.password2,
       origen: data.origen,
       pais_origen: data.paisOrigen,
@@ -253,12 +249,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       await apiClient.post(endpoint, payload);
+      toast.success("¡Registro exitoso! Ahora puedes iniciar sesión.");
     } catch (err: unknown) {
       console.error("Registration failed:", err);
-      if (axios.isAxiosError(err) && err.response) {
-        throw err.response.data;
+      if (process.env.NODE_ENV === 'production') {
+        toast.error("Ocurrió un error. Por favor verifica tus datos e intenta nuevamente.");
+      } else {
+        if (axios.isAxiosError(err) && err.response?.data) {
+          const errors = err.response.data;
+          const errorMessages = Object.entries(errors).map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`);
+          toast.error(`Error de Registro (dev): ${errorMessages.join(' ')}`, { autoClose: 10000 });
+        } else {
+          toast.error("Error de conexión o respuesta inesperada (dev).");
+        }
       }
-      throw new Error('No se pudo conectar al servidor. Inténtalo de nuevo.');
+      throw err;
     }
   };
 
