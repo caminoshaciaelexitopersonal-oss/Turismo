@@ -124,6 +124,7 @@ const CollapsibleNavSection = ({ section, userRole }: { section: NavSection; use
 
 export default function Sidebar() {
   const { user } = useAuth();
+  const { setActiveView } = useDashboard(); // Obtener la función para cambiar la vista
   const [navSections, setNavSections] = useState<NavSection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -131,17 +132,46 @@ export default function Sidebar() {
   const loadMenu = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 8000); // 8 segundos de timeout
+
     try {
-      // Usar el cliente de API para obtener los datos del menú del backend
-      const response = await api.get<NavSection[]>('/menu/');
-      setNavSections(response.data);
-    } catch (err) {
+      // Endpoint corregido de `/api/menu/` a `/api/config/menu-items/` tras verificar
+      // los archivos de URLs del backend (`api/urls.py`), donde se encontró que el
+      // primero no existía y el segundo sí.
+      const response = await api.get<NavSection[]>('/config/menu-items/', {
+        signal: controller.signal,
+      });
+
+      const menuData = response.data;
+      setNavSections(menuData);
+
+      // Al cargar el menú, establecer la primera vista disponible como activa
+      if (user && menuData.length > 0) {
+        const firstAllowedLink = menuData
+          .flatMap(section => section.links)
+          .find(link => link.allowedRoles.includes(user.role));
+
+        if (firstAllowedLink) {
+          setActiveView(firstAllowedLink.href);
+        }
+      }
+
+    } catch (err: any) {
       console.error("Error al cargar el menú desde la API:", err);
-      setError("No se pudo conectar con el servidor para cargar el menú.");
+      if (err.name === 'CanceledError' || err.name === 'AbortError') {
+        setError("La petición ha tardado demasiado y ha sido cancelada.");
+      } else {
+        setError("No se pudo conectar con el servidor para cargar el menú.");
+      }
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
     }
-  }, []);
+  }, [user, setActiveView]);
 
   useEffect(() => {
     loadMenu();
