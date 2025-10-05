@@ -582,7 +582,7 @@ class ElementoGuardadoCreateSerializer(serializers.ModelSerializer):
         if not model:
             raise serializers.ValidationError("Tipo de contenido no válido.")
         if not model.objects.filter(pk=data['object_id']).exists():
-            raise serializers.ValidationError(f"El objeto de tipo '{content_type_str}' con id '{data['object_id']}' no existe.")
+            raise serializers.ValidationError("El objeto especificado no existe.")
         data['content_type'] = ContentType.objects.get_for_model(model)
         return data
     def create(self, validated_data):

@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { RegisterData } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import FormField from '@/components/ui/FormField';
+import FormField from '@/components/ui/FormField'; // Importar el componente reutilizable
 
 type FormErrors = {
   [key in keyof RegisterData]?: string;
@@ -40,7 +40,7 @@ export default function RegisterPage() {
     setSuccess(null);
     setGeneralError(null);
 
-    if (data.password1 !== data.password2) {
+    if (data.password !== data.password2) {
       setError('password2', {
         type: 'manual',
         message: 'Las contraseñas no coinciden.',
@@ -122,7 +122,7 @@ export default function RegisterPage() {
           />
 
           <FormField
-            name="password1"
+            name="password"
             label="Contraseña"
             type="password"
             register={register}
