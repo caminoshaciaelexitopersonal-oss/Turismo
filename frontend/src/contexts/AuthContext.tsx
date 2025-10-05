@@ -131,6 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     setMfaRequired(false);
     setLoginCredentials(null);
+
     try {
       const userResponse = await apiClient.get('/auth/user/');
       const userData: User = userResponse.data;
@@ -236,6 +237,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else if (data.role === 'ARTESANO') {
       endpoint = '/auth/registration/artesano/';
     }
+
     const payload = {
       username: data.username || `${data.email.split('@')[0]}${Math.floor(Math.random() * 10000)}`,
       email: data.email,
@@ -244,6 +246,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       origen: data.origen,
       pais_origen: data.paisOrigen,
     };
+
     try {
       await apiClient.post(endpoint, payload);
       toast.success("¡Registro exitoso! Ahora puedes iniciar sesión.");
