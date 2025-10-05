@@ -41,7 +41,6 @@ export default async function DireccionTurismoPage() {
     // El slug 'direccion-turismo' debe coincidir con el que se configuró en el backend
     pageData = await getPaginaInstitucional('direccion-turismo');
   } catch (e) {
-    console.error(e);
     error =
       'No se pudo cargar el contenido de la página. Es posible que aún no se haya creado en el panel de administración.';
   }

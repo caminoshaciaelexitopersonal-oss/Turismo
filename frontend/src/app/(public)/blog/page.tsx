@@ -77,7 +77,6 @@ export default function BlogPage() {
 
     } catch (err) {
       setError('No se pudieron cargar los artículos del blog.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }

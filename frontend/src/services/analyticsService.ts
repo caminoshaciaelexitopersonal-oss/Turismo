@@ -75,7 +75,6 @@ export const getAnalyticsData = async (): Promise<AnalyticsData> => {
     const response = await api.get<AnalyticsData>('/dashboard/analytics/');
     return response.data;
   } catch (error) {
-    console.error('Error fetching analytics data:', error);
     // El error será manejado por el componente que llama a esta función.
     throw error;
   }

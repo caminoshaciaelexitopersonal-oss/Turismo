@@ -1180,7 +1180,6 @@ export const getAuditLogActionChoices = async (): Promise<
     if (Array.isArray(choices)) return choices;
     return [];
   } catch {
-    console.error("Error fetching audit log action choices:");
     return [];
   }
 };

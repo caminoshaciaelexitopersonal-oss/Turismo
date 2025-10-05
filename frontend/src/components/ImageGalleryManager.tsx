@@ -67,7 +67,6 @@ export default function ImageGalleryManager({ initialImages, onUpdate }: ImageGa
       setAltText('');
     } catch (err) {
       setError('Error al subir la imagen.');
-      console.error(err);
     } finally {
       setIsUploading(false);
     }
@@ -84,7 +83,6 @@ export default function ImageGalleryManager({ initialImages, onUpdate }: ImageGa
       onUpdate();
     } catch (err) {
       alert('Error al eliminar la imagen.');
-      console.error(err);
     }
   };
 

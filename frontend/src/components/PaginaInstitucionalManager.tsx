@@ -118,7 +118,6 @@ export default function PaginaInstitucionalManager() {
       setPaginas(response.results || []);
     } catch (err) {
       setError("No se pudieron cargar las páginas.");
-      console.error("Error al cargar las páginas institucionales:", err);
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +147,6 @@ export default function PaginaInstitucionalManager() {
       handleCloseModal();
     } catch (err) {
       setError(`Error al guardar la página: ${err instanceof Error ? err.message : String(err)}`);
-      console.error("Error al guardar la página:", err);
     }
   };
 
@@ -160,7 +158,6 @@ export default function PaginaInstitucionalManager() {
       fetchPages();
     } catch (err) {
       setError(`Error al eliminar la página: ${err instanceof Error ? err.message : String(err)}`);
-      console.error("Error al eliminar la página:", err);
     }
   };
 

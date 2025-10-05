@@ -43,7 +43,6 @@ const CapacitacionDetail: React.FC<CapacitacionDetailProps> = ({ capacitacionId,
             reset({ asistentes: initialAsistentes });
 
         } catch (err) {
-            console.error("Error al cargar los detalles:", err);
             setError("No se pudieron cargar los detalles de la capacitación.");
         } finally {
             setIsLoading(false);
@@ -63,7 +62,6 @@ const CapacitacionDetail: React.FC<CapacitacionDetailProps> = ({ capacitacionId,
             alert('Asistencia registrada con éxito. Los puntajes han sido actualizados.');
             onBack(); // Volver a la lista
         } catch (err) {
-            console.error("Error al registrar la asistencia:", err);
             setError("No se pudo guardar la asistencia.");
         } finally {
             setIsSubmitting(false);

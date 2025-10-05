@@ -57,7 +57,6 @@ const AtractivoForm: React.FC<AtractivoFormProps> = ({ atractivo, onSuccess, onC
       }
       onSuccess();
     } catch (error) {
-      console.error("Error al guardar el atractivo:", error);
       if (axios.isAxiosError(error) && error.response) {
         setServerError(JSON.stringify(error.response.data) || 'Ocurrió un error inesperado.');
       } else {

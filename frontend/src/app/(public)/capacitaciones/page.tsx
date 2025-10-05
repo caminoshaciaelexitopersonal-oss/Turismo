@@ -41,7 +41,6 @@ export default function CapacitacionesPage() {
         setCapacitaciones(response.data);
       } catch (err) {
         setError('No se pudieron cargar las capacitaciones. Por favor, intente de nuevo más tarde.');
-        console.error(err);
       } finally {
         setIsLoading(false);
       }

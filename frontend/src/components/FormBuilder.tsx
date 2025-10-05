@@ -112,7 +112,6 @@ const FormBuilder = () => {
       setError(null);
     } catch (err) {
       setError('No se pudieron cargar los formularios.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -132,7 +131,6 @@ const FormBuilder = () => {
       setSelectedForm(detailedForm);
     } catch (err) {
       setError('No se pudo cargar el detalle del formulario.');
-      console.error(err);
       setSelectedForm(null);
     } finally {
       setIsDetailLoading(false);
@@ -156,7 +154,6 @@ const FormBuilder = () => {
       setSelectedForm(newForm);
     } catch (err) {
       alert('Error al guardar el formulario.');
-      console.error(err);
     }
   };
 

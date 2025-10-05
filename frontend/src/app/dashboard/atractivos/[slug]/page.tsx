@@ -56,7 +56,6 @@ const AtractivoEditPage = () => {
       }
     } catch (error) {
       toast.error("No se pudo cargar el atractivo turístico.");
-      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +93,6 @@ const AtractivoEditPage = () => {
       router.push('/dashboard/atractivos');
     } catch (error) {
       toast.error("Hubo un error al guardar el atractivo.");
-      console.error(error);
     } finally {
       setIsSubmitting(false);
     }

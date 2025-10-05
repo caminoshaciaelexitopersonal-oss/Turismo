@@ -79,7 +79,6 @@ const AgendaPage = () => {
 
       } catch (err) {
         setError('No se pudo cargar la agenda. Por favor, intente más tarde.');
-        console.error(err);
       } finally {
         setIsLoading(false);
       }

@@ -117,6 +117,10 @@ export default function RegisterPage() {
             errors={errors}
             autoComplete="new-password"
             required
+            validation={{
+              validate: (value: string) =>
+                value === watch('password1') || 'Las contraseñas no coinciden.'
+            }}
           />
 
           <FormField
@@ -142,31 +146,24 @@ export default function RegisterPage() {
               className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="TURISTA">Turista</option>
-              <option value="PRESTADOR">Prestador de Servicios</option>
+              <option value="PRESTADOR">Prestador de Servicios Turísticos</option>
               <option value="ARTESANO">Artesano</option>
+              <option value="ADMINISTRADOR">Administrador</option>
+              <option value="FUNCIONARIO_DIRECTIVO">Funcionario Directivo</option>
+              <option value="FUNCIONARIO_PROFESIONAL">Funcionario Profesional</option>
             </select>
           </div>
 
+          {/* --- Campos para Turista --- */}
           {role === 'TURISTA' && (
-            <>
+            <div className="p-4 space-y-4 border-l-4 border-blue-500 bg-blue-50">
+              <h3 className="font-medium text-gray-800">Información del Turista</h3>
               <div>
-                <label
-                  htmlFor="origen"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  ¿De dónde nos visitas?
-                </label>
+                <label htmlFor="origen" className="block text-sm font-medium text-gray-700">¿De dónde nos visitas?</label>
                 <select
                   id="origen"
-                  {...register('origen', {
-                    required:
-                      role === 'TURISTA'
-                        ? 'Por favor, selecciona tu origen.'
-                        : false,
-                  })}
-                  className={`w-full px-3 py-2 mt-1 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                    errors.origen ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  {...register('origen', { required: role === 'TURISTA' ? 'Este campo es obligatorio.' : false })}
+                  className={`w-full px-3 py-2 mt-1 border rounded-md shadow-sm ${errors.origen ? 'border-red-500' : 'border-gray-300'}`}
                 >
                   <option value="">Selecciona tu origen</option>
                   <option value="LOCAL">Soy de Puerto Gaitán</option>
@@ -174,21 +171,63 @@ export default function RegisterPage() {
                   <option value="NACIONAL">Vengo de otro lugar de Colombia</option>
                   <option value="EXTRANJERO">Soy extranjero</option>
                 </select>
-                {errors.origen && (
-                  <p className="mt-1 text-xs text-red-600">{errors.origen.message}</p>
-                )}
+                {errors.origen && <p className="mt-1 text-xs text-red-600">{errors.origen.message}</p>}
               </div>
 
               {origen === 'EXTRANJERO' && (
-                <FormField
-                  name="paisOrigen"
-                  label="País de Origen"
-                  register={register}
-                  errors={errors}
-                  required={origen === 'EXTRANJERO'}
-                />
+                <FormField name="pais_origen" label="País de Origen" register={register} errors={errors} required={origen === 'EXTRANJERO'} />
               )}
-            </>
+            </div>
+          )}
+
+          {/* --- Campos para Prestador --- */}
+          {role === 'PRESTADOR' && (
+            <div className="p-4 space-y-4 border-l-4 border-green-500 bg-green-50">
+              <h3 className="font-medium text-gray-800">Información del Prestador de Servicios</h3>
+              <FormField name="nombre_establecimiento" label="Nombre del Establecimiento" register={register} errors={errors} required />
+              <FormField name="rnt" label="Registro Nacional de Turismo (RNT)" register={register} errors={errors} required />
+              <FormField name="tipo_servicio" label="Tipo de Servicio (Hotel, Restaurante, etc.)" register={register} errors={errors} required />
+            </div>
+          )}
+
+          {/* --- Campos para Artesano --- */}
+          {role === 'ARTESANO' && (
+            <div className="p-4 space-y-4 border-l-4 border-yellow-500 bg-yellow-50">
+              <h3 className="font-medium text-gray-800">Información del Artesano</h3>
+              <FormField name="nombre_taller" label="Nombre del Taller" register={register} errors={errors} required />
+              <FormField name="tipo_artesania" label="Tipo de Artesanía" register={register} errors={errors} required />
+              <FormField name="material_principal" label="Material Principal" register={register} errors={errors} required />
+            </div>
+          )}
+
+          {/* --- Campos para Administrador --- */}
+          {role === 'ADMINISTRADOR' && (
+            <div className="p-4 space-y-4 border-l-4 border-red-500 bg-red-50">
+                <h3 className="font-medium text-gray-800">Información del Administrador</h3>
+                <FormField name="cargo" label="Cargo" register={register} errors={errors} required />
+                <FormField name="dependencia_asignada" label="Dependencia Asignada" register={register} errors={errors} required />
+                <FormField name="nivel_acceso" label="Nivel de Acceso" register={register} errors={errors} required />
+            </div>
+          )}
+
+          {/* --- Campos para Funcionario Directivo --- */}
+          {role === 'FUNCIONARIO_DIRECTIVO' && (
+            <div className="p-4 space-y-4 border-l-4 border-purple-500 bg-purple-50">
+                <h3 className="font-medium text-gray-800">Información del Funcionario Directivo</h3>
+                <FormField name="dependencia" label="Dependencia" register={register} errors={errors} required />
+                <FormField name="nivel_direccion" label="Nivel de Dirección" register={register} errors={errors} required />
+                <FormField name="area_funcional" label="Área Funcional" register={register} errors={errors} required />
+            </div>
+          )}
+
+          {/* --- Campos para Funcionario Profesional --- */}
+          {role === 'FUNCIONARIO_PROFESIONAL' && (
+            <div className="p-4 space-y-4 border-l-4 border-indigo-500 bg-indigo-50">
+                <h3 className="font-medium text-gray-800">Información del Funcionario Profesional</h3>
+                <FormField name="dependencia" label="Dependencia" register={register} errors={errors} required />
+                <FormField name="profesion" label="Profesión" register={register} errors={errors} required />
+                <FormField name="area_asignada" label="Área Asignada" register={register} errors={errors} required />
+            </div>
           )}
 
           <div className="pt-2">

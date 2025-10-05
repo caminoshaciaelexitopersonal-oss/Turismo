@@ -17,7 +17,6 @@ const FormManager: React.FC = () => {
       setFormularios(data);
     } catch (err) {
       setError('No se pudieron cargar los formularios.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }

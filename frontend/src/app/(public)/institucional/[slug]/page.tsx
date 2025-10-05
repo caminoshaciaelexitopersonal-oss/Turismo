@@ -37,7 +37,6 @@ async function getPaginaData(slug: string): Promise<PaginaData | null> {
 
     return res.json();
   } catch (error) {
-    console.error("Error fetching página institucional:", error);
     return null;
   }
 }

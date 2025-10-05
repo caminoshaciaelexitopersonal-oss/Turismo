@@ -57,7 +57,6 @@ function PrestadorDetailPageContent() {
         setError(null);
       } catch (err) {
         setError('No se pudo encontrar el prestador de servicios. Es posible que ya no esté disponible.');
-        console.error(err);
       } finally {
         setLoading(false);
       }

@@ -63,7 +63,6 @@ export default function NoticiasPage() {
 
     } catch (err) {
       setError('No se pudieron cargar las noticias.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
