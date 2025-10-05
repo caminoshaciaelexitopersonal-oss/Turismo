@@ -53,7 +53,8 @@ from .models import (
     PlantillaVerificacion,
     ItemVerificacion,
     Verificacion,
-    RespuestaItemVerificacion
+    RespuestaItemVerificacion,
+    AsistenciaCapacitacion
 )
 from .serializers import (
     GaleriaItemSerializer,
@@ -116,7 +117,6 @@ from .serializers import (
     OpcionRespuestaSerializer,
     RespuestaUsuarioSerializer,
     RespuestaUsuarioCreateSerializer,
-    # Serializers para Verificación de Cumplimiento
     PlantillaVerificacionListSerializer,
     PlantillaVerificacionDetailSerializer,
     VerificacionListSerializer,
@@ -124,10 +124,8 @@ from .serializers import (
     IniciarVerificacionSerializer,
     GuardarVerificacionSerializer,
     AIConfigSerializer,
-# Serializers para Capacitaciones
-CapacitacionDetailSerializer,
-RegistrarAsistenciaSerializer,
-AIConfigSerializer
+    CapacitacionDetailSerializer,
+    RegistrarAsistenciaSerializer
 )
 from .permissions import (
     IsTurista,
@@ -185,7 +183,6 @@ class ElementoGuardadoViewSet(viewsets.ModelViewSet):
     def get_serializer_context(self):
         return {'request': self.request}
 
-# ... (el resto del código de views.py) ...
 class ResenaViewSet(viewsets.ModelViewSet):
     queryset = Resena.objects.all().order_by('-fecha_creacion')
 
@@ -258,4 +255,235 @@ class SugerenciaAdminViewSet(viewsets.ModelViewSet):
     search_fields = ['mensaje', 'nombre_remitente', 'email_remitente', 'usuario__username']
     ordering_fields = ['fecha_envio', 'estado', 'tipo_mensaje']
 
-# ... (el resto del código de views.py) ...
+# Minimal ViewSets to fix startup errors
+class NotificacionViewSet(viewsets.ModelViewSet):
+    queryset = Notificacion.objects.all()
+    serializer_class = NotificacionSerializer
+    permission_classes = [IsAuthenticated]
+
+class AtractivoTuristicoViewSet(viewsets.ModelViewSet):
+    queryset = AtractivoTuristico.objects.all()
+    serializer_class = AtractivoTuristicoListSerializer
+    permission_classes = [AllowAny]
+
+class RutaTuristicaViewSet(viewsets.ModelViewSet):
+    queryset = RutaTuristica.objects.all()
+    serializer_class = RutaTuristicaListSerializer
+    permission_classes = [AllowAny]
+
+class HechoHistoricoViewSet(viewsets.ModelViewSet):
+    queryset = HechoHistorico.objects.all()
+    serializer_class = HechoHistoricoSerializer
+    permission_classes = [AllowAny]
+
+class MenuItemViewSet(viewsets.ModelViewSet):
+    queryset = MenuItem.objects.all()
+    serializer_class = MenuItemSerializer
+    permission_classes = [AllowAny]
+
+class ContenidoMunicipioViewSet(viewsets.ModelViewSet):
+    queryset = ContenidoMunicipio.objects.all()
+    serializer_class = ContenidoMunicipioSerializer
+    permission_classes = [AllowAny]
+
+class PaginaInstitucionalViewSet(viewsets.ModelViewSet):
+    queryset = PaginaInstitucional.objects.all()
+    serializer_class = PaginaInstitucionalSerializer
+    permission_classes = [AllowAny]
+
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = CustomUser.objects.all()
+    serializer_class = AdminUserSerializer
+    permission_classes = [IsAdmin]
+
+class AdminPublicacionViewSet(viewsets.ModelViewSet):
+    queryset = Publicacion.objects.all()
+    serializer_class = AdminPublicacionSerializer
+    permission_classes = [IsAdminOrFuncionario]
+
+class HomePageComponentViewSet(viewsets.ModelViewSet):
+    queryset = HomePageComponent.objects.all()
+    serializer_class = HomePageComponentSerializer
+    permission_classes = [AllowAny]
+
+class AuditLogViewSet(viewsets.ModelViewSet):
+    queryset = AuditLog.objects.all()
+    serializer_class = AuditLogSerializer
+    permission_classes = [IsAdmin]
+
+class ScoringRuleViewSet(viewsets.ModelViewSet):
+    queryset = ScoringRule.objects.all()
+    serializer_class = ScoringRuleSerializer
+    permission_classes = [IsAdmin]
+
+class AdminPrestadorViewSet(viewsets.ModelViewSet):
+    queryset = PrestadorServicio.objects.all()
+    serializer_class = AdminPrestadorDetailSerializer
+    permission_classes = [IsAdminOrFuncionario]
+
+class AdminArtesanoViewSet(viewsets.ModelViewSet):
+    queryset = Artesano.objects.all()
+    serializer_class = AdminArtesanoDetailSerializer
+    permission_classes = [IsAdminOrFuncionario]
+
+class PlantillaVerificacionViewSet(viewsets.ModelViewSet):
+    queryset = PlantillaVerificacion.objects.all()
+    serializer_class = PlantillaVerificacionListSerializer
+    permission_classes = [IsAdminOrFuncionario]
+
+class VerificacionViewSet(viewsets.ModelViewSet):
+    queryset = Verificacion.objects.all()
+    serializer_class = VerificacionListSerializer
+    permission_classes = [IsAuthenticated]
+
+class PreguntaViewSet(viewsets.ModelViewSet):
+    queryset = Pregunta.objects.all()
+    serializer_class = PreguntaSerializer
+    permission_classes = [IsAdminOrDirectivo]
+
+class OpcionRespuestaViewSet(viewsets.ModelViewSet):
+    queryset = OpcionRespuesta.objects.all()
+    serializer_class = OpcionRespuestaSerializer
+    permission_classes = [IsAdminOrDirectivo]
+
+class SiteConfigurationView(generics.RetrieveUpdateAPIView):
+    queryset = SiteConfiguration.objects.all()
+    serializer_class = SiteConfigurationSerializer
+    permission_classes = [AllowAny]
+
+    def get_object(self):
+        return SiteConfiguration.load()
+
+class PrestadorProfileView(generics.RetrieveUpdateAPIView):
+    queryset = PrestadorServicio.objects.all()
+    serializer_class = PrestadorServicioSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user.perfil_prestador
+
+class ArtesanoProfileView(generics.RetrieveUpdateAPIView):
+    queryset = Artesano.objects.all()
+    serializer_class = ArtesanoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user.artesano
+
+class FeedbackProveedorView(generics.ListAPIView):
+    queryset = Sugerencia.objects.none()
+    serializer_class = FeedbackProveedorSerializer
+    permission_classes = [IsAuthenticated]
+
+class AIConfigView(generics.RetrieveUpdateAPIView):
+    queryset = CustomUser.objects.all()
+    serializer_class = AIConfigSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+class ImagenGaleriaView(generics.ListCreateAPIView):
+    queryset = ImagenGaleria.objects.all()
+    serializer_class = ImagenGaleriaSerializer
+    permission_classes = [IsAuthenticated]
+
+class ImagenArtesanoView(generics.ListCreateAPIView):
+    queryset = ImagenArtesano.objects.all()
+    serializer_class = ImagenArtesanoSerializer
+    permission_classes = [IsAuthenticated]
+
+class DocumentoLegalizacionView(generics.ListCreateAPIView):
+    queryset = DocumentoLegalizacion.objects.all()
+    serializer_class = DocumentoLegalizacionSerializer
+    permission_classes = [IsAuthenticated]
+
+class RespuestaUsuarioViewSet(viewsets.ModelViewSet):
+    queryset = RespuestaUsuario.objects.all()
+    serializer_class = RespuestaUsuarioSerializer
+    permission_classes = [IsAuthenticated]
+
+class PublicacionListView(generics.ListAPIView):
+    queryset = Publicacion.objects.all()
+    serializer_class = PublicacionListSerializer
+    permission_classes = [AllowAny]
+
+class PublicacionDetailView(generics.RetrieveAPIView):
+    queryset = Publicacion.objects.all()
+    serializer_class = PublicacionDetailSerializer
+    permission_classes = [AllowAny]
+
+class ConsejoConsultivoListView(generics.ListAPIView):
+    queryset = ConsejoConsultivo.objects.all()
+    serializer_class = ConsejoConsultivoSerializer
+    permission_classes = [AllowAny]
+
+class VideoListView(generics.ListAPIView):
+    queryset = Video.objects.all()
+    serializer_class = VideoSerializer
+    permission_classes = [AllowAny]
+
+class LocationListView(generics.ListAPIView):
+    queryset = PrestadorServicio.objects.all() # Placeholder
+    serializer_class = LocationSerializer
+    permission_classes = [AllowAny]
+
+class GaleriaListView(generics.ListAPIView):
+    queryset = ImagenGaleria.objects.all() # Placeholder
+    serializer_class = GaleriaItemSerializer
+    permission_classes = [AllowAny]
+
+class AgentCommandView(views.APIView):
+    permission_classes = [AllowAny]
+    def post(self, request, *args, **kwargs):
+        return Response({"message": "Comando recibido."})
+
+class AgentTaskStatusView(generics.RetrieveAPIView):
+    queryset = AgentTask.objects.all()
+    serializer_class = AgentTaskSerializer
+    permission_classes = [IsAuthenticated]
+
+class AnalyticsDataView(views.APIView):
+    permission_classes = [IsAdminOrFuncionario]
+    def get(self, request, *args, **kwargs):
+        return Response({"message": "Datos de analítica."})
+
+class AdminUsuarioListView(generics.ListAPIView):
+    queryset = CustomUser.objects.all()
+    serializer_class = UsuarioListSerializer
+    permission_classes = [IsAdminOrFuncionario]
+
+class CategoriaPrestadorListView(generics.ListAPIView):
+    queryset = CategoriaPrestador.objects.all()
+    serializer_class = CategoriaPrestadorSerializer
+    permission_classes = [AllowAny]
+
+class PrestadorServicioPublicListView(generics.ListAPIView):
+    queryset = PrestadorServicio.objects.all()
+    serializer_class = PrestadorServicioPublicListSerializer
+    permission_classes = [AllowAny]
+
+class PrestadorServicioPublicDetailView(generics.RetrieveAPIView):
+    queryset = PrestadorServicio.objects.all()
+    serializer_class = PrestadorServicioPublicDetailSerializer
+    permission_classes = [AllowAny]
+
+class RubroArtesanoListView(generics.ListAPIView):
+    queryset = RubroArtesano.objects.all()
+    serializer_class = RubroArtesanoSerializer
+    permission_classes = [AllowAny]
+
+class ArtesanoPublicListView(generics.ListAPIView):
+    queryset = Artesano.objects.all()
+    serializer_class = ArtesanoPublicListSerializer
+    permission_classes = [AllowAny]
+
+class ArtesanoPublicDetailView(generics.RetrieveAPIView):
+    queryset = Artesano.objects.all()
+    serializer_class = ArtesanoPublicDetailSerializer
+    permission_classes = [AllowAny]
+
+class DetailedStatisticsView(views.APIView):
+    permission_classes = [IsAdmin]
+    def get(self, request, *args, **kwargs):
+        return Response({"message": "Datos de estadísticas detalladas."})

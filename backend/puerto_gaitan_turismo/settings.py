@@ -168,7 +168,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 # DJANGO-ALLAUTH
-ACCOUNT_LOGIN_METHODS = {"email"}  
+ACCOUNT_LOGIN_METHODS = {"username", "email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = "mandatory" if not DEBUG else "none"
 ACCOUNT_ADAPTER = "allauth.account.adapter.DefaultAccountAdapter"

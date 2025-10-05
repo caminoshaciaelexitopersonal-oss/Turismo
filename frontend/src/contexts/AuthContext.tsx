@@ -28,10 +28,9 @@ interface User {
 
 // Interfaz para los datos del formulario de registro
 export interface RegisterData {
-  // Hacemos username opcional aquí para permitir generar uno si no lo proporciona el frontend
   username?: string;
   email: string;
-  password1: string;
+  password1: string; // Corregido de 'password' a 'password1'
   password2: string;
   role: 'TURISTA' | 'PRESTADOR' | 'ARTESANO';
   origen?: string;
@@ -74,7 +73,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (typeof window !== "undefined") {
         const localToken = localStorage.getItem("authToken");
         if (localToken) {
-          // Aseguramos que headers exista
           if (!config.headers) config.headers = {};
           (config.headers as Record<string, string>).Authorization = `Token ${localToken}`;
         }
@@ -102,7 +100,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userResponse.data);
 
       if (userResponse.data.role === 'TURISTA') {
-        // Obtener items guardados sólo para turistas
         const savedItemsResponse = await apiClient.get('/mi-viaje/');
         const itemMap: Map<string, number> = new Map(
           savedItemsResponse.data.results.map((item: SavedItem) => [
@@ -116,22 +113,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Error fetching user data, logging out:", error);
-      // Si falla al obtener datos, forzamos logout para evitar estados inconsistentes
       logout();
     }
   }, [apiClient, logout]);
 
   useEffect(() => {
-    // Al montar, verificamos token en localStorage
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
     if (storedToken) {
       setToken(storedToken);
-      // fetchUserData usará el interceptor que lee token de localStorage
       fetchUserData().finally(() => setIsLoading(false));
     } else {
       setIsLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchUserData]);
 
   const completeLogin = async (key: string) => {
@@ -142,7 +135,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setMfaRequired(false);
     setLoginCredentials(null);
 
-    // Obtener user con el token recién guardado (el interceptor lo incluirá)
     try {
       const userResponse = await apiClient.get('/auth/user/');
       const userData: User = userResponse.data;
@@ -156,16 +148,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err) {
       console.error("Error al completar login:", err);
-      // Si algo sale mal al recuperar user, limpiamos credenciales
       logout();
     }
   };
 
   const login = async (identifier: string, password: string) => {
     try {
+      const isEmail = identifier.includes('@');
       const payload = {
-        username: identifier, // El backend puede aceptar email o username aquí
         password,
+        ...(isEmail ? { email: identifier } : { username: identifier }),
       };
 
       const response = await apiClient.post('/auth/login/', payload);
@@ -173,7 +165,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (response.data?.key) {
         await completeLogin(response.data.key);
       } else {
-        // Si backend no devuelve key, asumimos MFA requerido y guardamos credenciales temporales
         setMfaRequired(true);
         setLoginCredentials({ identifier, password });
       }
@@ -222,7 +213,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const toggleSaveItem = async (contentType: string, objectId: number) => {
     if (!user || user.role !== 'TURISTA') {
-      // Redirigir a login si intenta guardar sin ser turista autenticado
       alert("Necesitas iniciar sesión como turista para guardar favoritos.");
       router.push('/login');
       return;
@@ -237,7 +227,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         await apiClient.post('/mi-viaje/', { content_type: contentType, object_id: objectId });
       }
-      // Refrescar lista guardada
       await fetchUserData();
     } catch (error) {
       console.error("Error al guardar/eliminar el elemento:", error);
@@ -246,46 +235,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const register = async (data: RegisterData) => {
-    // Elegimos endpoint según rol
-    let endpoint = '/auth/registration/'; // default
+    let endpoint = '/auth/registration/';
     if (data.role === 'TURISTA') {
       endpoint = '/auth/registration/turista/';
     } else if (data.role === 'ARTESANO') {
       endpoint = '/auth/registration/artesano/';
     }
 
-    interface RegisterPayload {
-      username: string;
-      email: string;
-      password1: string;
-      password2: string;
-      origen?: string;
-      pais_origen?: string;
-    }
-
-    // Si frontend no provee username, generamos uno seguro a partir del email
-    const generatedUsername = `${data.email.split('@')[0]}${Math.floor(Math.random() * 10000)}`;
-
-    const payload: RegisterPayload = {
-      username: data.username && data.username.trim().length > 0 ? data.username.trim() : generatedUsername,
+    const payload = {
+      username: data.username || `${data.email.split('@')[0]}${Math.floor(Math.random() * 10000)}`,
       email: data.email,
-      password1: data.password1,
+      password1: data.password1, // Corregido
       password2: data.password2,
+      origen: data.origen,
+      pais_origen: data.paisOrigen,
     };
-
-    if (data.role === 'TURISTA') {
-      if (data.origen) payload.origen = data.origen;
-      if (data.origen === 'EXTRANJERO' && data.paisOrigen) {
-        payload.pais_origen = data.paisOrigen;
-      }
-    }
 
     try {
       await apiClient.post(endpoint, payload);
     } catch (err: unknown) {
       console.error("Registration failed:", err);
       if (axios.isAxiosError(err) && err.response) {
-        // Re-lanzamos el objeto de error del backend para que el llamador lo procese
         throw err.response.data;
       }
       throw new Error('No se pudo conectar al servidor. Inténtalo de nuevo.');
