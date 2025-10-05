@@ -77,6 +77,7 @@ from .serializers import (
     RutaTuristicaListSerializer,
     RutaTuristicaDetailSerializer,
     LocationSerializer,
+    PrestadorRegisterSerializer,
     TuristaRegisterSerializer,
     ArtesanoRegisterSerializer,
     ElementoGuardadoSerializer,
@@ -619,6 +620,9 @@ class DocumentoLegalizacionView(generics.ListCreateAPIView):
         serializer.save(prestador=self.request.user.perfil_prestador)
 
 
+class PrestadorRegisterView(RegisterView):
+    serializer_class = PrestadorRegisterSerializer
+
 class DocumentoLegalizacionDetailView(generics.RetrieveDestroyAPIView):
     serializer_class = DocumentoLegalizacionSerializer
     permission_classes = [IsAuthenticated]
@@ -626,6 +630,9 @@ class DocumentoLegalizacionDetailView(generics.RetrieveDestroyAPIView):
     def get_queryset(self):
         return DocumentoLegalizacion.objects.filter(prestador=self.request.user.perfil_prestador)
 
+
+class PrestadorRegisterView(RegisterView):
+    serializer_class = PrestadorRegisterSerializer
 
 class TuristaRegisterView(RegisterView):
     serializer_class = TuristaRegisterSerializer

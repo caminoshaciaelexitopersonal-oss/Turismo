@@ -163,9 +163,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (identifier: string, password: string) => {
     try {
+      const isEmail = identifier.includes('@');
       const payload = {
-        username: identifier, // El backend puede aceptar email o username aquí
         password,
+        ...(isEmail ? { email: identifier } : { username: identifier }),
       };
 
       const response = await apiClient.post('/auth/login/', payload);
