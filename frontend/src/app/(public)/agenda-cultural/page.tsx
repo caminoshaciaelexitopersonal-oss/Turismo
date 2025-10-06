@@ -57,7 +57,6 @@ export default function AgendaCulturalPage() {
 
       setEvents(calendarEvents);
     } catch (err) {
-      console.error('Error al cargar eventos:', err);
       setError('No se pudieron cargar los eventos del calendario.');
     }
   }, []);

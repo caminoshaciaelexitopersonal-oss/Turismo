@@ -72,7 +72,6 @@ export default function RutaDetailPage() {
           setError(null);
         } catch (err) {
           setError('No se pudo cargar la ruta turística. Es posible que no exista o haya ocurrido un error.');
-          console.error(err);
         } finally {
           setLoading(false);
         }

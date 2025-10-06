@@ -26,13 +26,47 @@ interface User {
 }
 
 export interface RegisterData {
+  // Campos comunes
   username?: string;
   email: string;
   password1: string;
-  password2: string;
-  role: 'TURISTA' | 'PRESTADOR' | 'ARTESANO';
-  origen?: string;
-  paisOrigen?: string;
+  password2:string;
+  role:
+    | 'TURISTA'
+    | 'PRESTADOR'
+    | 'ARTESANO'
+    | 'ADMINISTRADOR'
+    | 'FUNCIONARIO_DIRECTIVO'
+    | 'FUNCIONARIO_PROFESIONAL';
+
+  // Campos para Turista
+  origen?: 'LOCAL' | 'REGIONAL' | 'NACIONAL' | 'EXTRANJERO' | '';
+  pais_origen?: string;
+
+  // Campos para Prestador
+  nombre_establecimiento?: string;
+  rnt?: string;
+  tipo_servicio?: string;
+
+  // Campos para Artesano
+  nombre_taller?: string;
+  tipo_artesania?: string;
+  material_principal?: string;
+
+  // Campos para Administrador
+  cargo?: string;
+  dependencia_asignada?: string;
+  nivel_acceso?: string;
+
+  // Campos para Funcionario Directivo
+  dependencia?: string;
+  nivel_direccion?: string;
+  area_funcional?: string;
+
+  // Campos para Funcionario Profesional
+  // 'dependencia' ya está definido
+  profesion?: string;
+  area_asignada?: string;
 }
 
 interface AuthContextType {
@@ -74,12 +108,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchUserData = useCallback(async () => {
     try {
-      const userResponse = await api.get('/auth/user/');
-      setUser(userResponse.data);
-      if (userResponse.data.role === 'TURISTA') {
-        const savedItemsResponse = await api.get('/mi-viaje/');
-        const itemMap: Map<string, number> = new Map(
-          savedItemsResponse.data.results.map((item: SavedItem) => [
+      const userResponse = await api.get<User>('/auth/user/');
+      const userData = userResponse.data;
+      setUser(userData);
+
+      if (userData.role === 'TURISTA') {
+        const savedItemsResponse = await api.get<{ results: SavedItem[] }>('/mi-viaje/');
+        const itemMap = new Map(
+          savedItemsResponse.data.results.map((item) => [
             `${item.content_type_name}_${item.object_id}`,
             item.id,
           ])
@@ -88,9 +124,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setSavedItemsMap(new Map());
       }
+      return userData; // Devolver los datos del usuario para uso inmediato
     } catch (error) {
-      console.error("Error fetching user data, logging out:", error);
       logout();
+      return null; // Devolver null en caso de error
     }
   }, [logout]);
 
@@ -98,14 +135,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const storedToken = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
     if (storedToken) {
       setToken(storedToken);
-      // La clave es que fetchUserData ahora es estable y no causa un bucle
-      fetchUserData().finally(() => {
-        setIsLoading(false);
-      });
+      fetchUserData().finally(() => setIsLoading(false));
     } else {
       setIsLoading(false);
     }
-  }, [fetchUserData]); // Este useEffect ahora se ejecuta solo una vez si el token existe
+  }, [fetchUserData]);
 
   const completeLogin = async (key: string) => {
     setToken(key);
@@ -114,31 +148,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     setMfaRequired(false);
     setLoginCredentials(null);
+    setIsLoading(true);
 
-    setIsLoading(true); // Indicar que estamos cargando datos del usuario
     try {
-      // No es necesario llamar a apiClient.get('/auth/user/') aquí,
-      // porque fetchUserData() ya lo hace.
-      await fetchUserData();
+      const userData = await fetchUserData();
 
-      // La redirección debe basarse en los datos frescos del usuario
-      // Para ello, necesitamos acceder al estado actualizado del usuario.
-      // Dado que `fetchUserData` actualiza el estado `user`,
-      // podemos confiar en que un re-render posterior manejará la redirección.
-      // O podemos obtener los datos directamente y usarlos.
+      if (userData) {
+        toast.success(`¡Bienvenido, ${userData.username}!`);
 
-      const userResponse = await api.get('/auth/user/');
-      const userData: User = userResponse.data;
-      setUser(userData); // Actualizar el usuario una vez más para asegurar consistencia
-
-      toast.success(`¡Bienvenido, ${userData.username}!`);
-      if (userData.role === 'TURISTA') {
-        router.push('/mi-viaje');
+        // La lógica de redirección se basa en la ruta de la página, no en la vista interna.
+        // La vista interna será gestionada por el propio Dashboard.
+        if (userData.role === 'TURISTA') {
+          router.push('/mi-viaje');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
-        router.push('/dashboard');
+        throw new Error("No se pudieron obtener los datos del usuario tras el login.");
       }
     } catch (err) {
-      console.error("Error al completar login:", err);
+      toast.error("Hubo un problema al iniciar sesión. Por favor, inténtelo de nuevo.");
       logout();
     } finally {
       setIsLoading(false);
@@ -160,7 +189,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setLoginCredentials({ identifier, password });
       }
     } catch (err: unknown) {
-      console.error("Login failed:", err);
       if (process.env.NODE_ENV === 'production') {
         toast.error("Ocurrió un error. Por favor verifica tus datos e intenta nuevamente.");
       } else {
@@ -192,7 +220,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Respuesta inesperada del servidor durante la verificación MFA.');
       }
     } catch (err: unknown) {
-      console.error("MFA verification failed:", err);
       if (axios.isAxiosError(err) && err.response) {
         const errorMsg = err.response.data?.non_field_errors?.[0] || 'El código de verificación es incorrecto.';
         throw new Error(errorMsg);
@@ -224,12 +251,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Volver a cargar los datos del usuario para actualizar la lista de guardados
       await fetchUserData();
     } catch (error) {
-      console.error("Error al guardar/eliminar el elemento:", error);
       toast.error("Hubo un error al procesar tu solicitud.");
     }
   };
 
   const register = async (data: RegisterData) => {
+    // Determinar el endpoint correcto. El default es para PRESTADOR y los roles de ADMIN/FUNCIONARIO.
     let endpoint = '/auth/registration/';
     if (data.role === 'TURISTA') {
       endpoint = '/auth/registration/turista/';
@@ -237,20 +264,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       endpoint = '/auth/registration/artesano/';
     }
 
-    const payload = {
+    // Construir el payload base con campos comunes
+    const payload: { [key: string]: any } = {
       username: data.username || `${data.email.split('@')[0]}${Math.floor(Math.random() * 10000)}`,
       email: data.email,
-      password: data.password1, // Corregido para ser compatible con dj-rest-auth
+      password1: data.password1,
       password2: data.password2,
-      origen: data.origen,
-      pais_origen: data.paisOrigen,
+      role: data.role, // Enviar siempre el rol
     };
+
+    // Añadir campos específicos del rol al payload
+    switch (data.role) {
+      case 'TURISTA':
+        payload.origen = data.origen;
+        if (data.origen === 'EXTRANJERO') {
+          payload.pais_origen = data.pais_origen;
+        }
+        break;
+      case 'PRESTADOR':
+        payload.nombre_establecimiento = data.nombre_establecimiento;
+        payload.rnt = data.rnt;
+        payload.tipo_servicio = data.tipo_servicio;
+        break;
+      case 'ARTESANO':
+        payload.nombre_taller = data.nombre_taller;
+        payload.tipo_artesania = data.tipo_artesania;
+        payload.material_principal = data.material_principal;
+        break;
+      case 'ADMINISTRADOR':
+        payload.cargo = data.cargo;
+        payload.dependencia_asignada = data.dependencia_asignada;
+        payload.nivel_acceso = data.nivel_acceso;
+        break;
+      case 'FUNCIONARIO_DIRECTIVO':
+        payload.dependencia = data.dependencia;
+        payload.nivel_direccion = data.nivel_direccion;
+        payload.area_funcional = data.area_funcional;
+        break;
+      case 'FUNCIONARIO_PROFESIONAL':
+        payload.dependencia = data.dependencia;
+        payload.profesion = data.profesion;
+        payload.area_asignada = data.area_asignada;
+        break;
+    }
 
     try {
       await api.post(endpoint, payload);
-      toast.success("¡Registro exitoso! Por favor, revisa tu correo para verificar tu cuenta antes de iniciar sesión.");
+      // Mensaje de éxito unificado y amigable para el usuario, como se solicitó.
+      toast.success("¡Registro exitoso! Ahora puedes iniciar sesión.");
     } catch (err: unknown) {
-      console.error("Registration failed:", err);
       if (process.env.NODE_ENV === 'production') {
         toast.error("Ocurrió un error. Por favor verifica tus datos e intenta nuevamente.");
       } else {

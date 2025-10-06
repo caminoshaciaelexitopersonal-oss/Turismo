@@ -52,7 +52,6 @@ export default async function EventosDestacadosPage() {
   try {
     featuredEvents = await getPublicaciones({ destacados: true, limit: 5 });
   } catch (e) {
-    console.error(e);
     error = 'No se pudieron cargar los eventos destacados en este momento.';
   }
 

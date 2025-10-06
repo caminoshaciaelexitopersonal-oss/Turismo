@@ -113,7 +113,6 @@ export const ResenasSection: React.FC<ResenasSectionProps> = ({ contentType, obj
             const data = await getResenas(contentType, objectId);
             setResenas(data);
         } catch (err) {
-            console.error("Error al cargar reseñas:", err);
             setError("No se pudieron cargar las reseñas.");
         } finally {
             setIsLoading(false);
@@ -140,7 +139,6 @@ export const ResenasSection: React.FC<ResenasSectionProps> = ({ contentType, obj
             alert("¡Gracias! Tu reseña ha sido enviada y estará visible una vez sea aprobada.");
             fetchResenas();
         } catch (err) {
-            console.error("Error al enviar reseña:", err);
             setError("Error al enviar tu reseña. Es posible que ya hayas dejado una.");
         } finally {
             setIsSubmitting(false);

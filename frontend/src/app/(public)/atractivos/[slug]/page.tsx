@@ -47,7 +47,6 @@ export default function AtractivoDetailPage() {
           setAtractivo(response.data);
         } catch (err) {
           setError('No se pudo encontrar el atractivo turístico.');
-          console.error(err);
         } finally {
           setIsLoading(false);
         }

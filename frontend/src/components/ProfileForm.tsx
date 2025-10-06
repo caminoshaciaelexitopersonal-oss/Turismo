@@ -159,7 +159,6 @@ export default function ProfileForm() {
       handleCloseModal();
     } catch (err) {
       setError('Error al guardar la caracterización de eventos.');
-      console.error(err);
     }
   };
 
@@ -185,7 +184,6 @@ export default function ProfileForm() {
       handleCloseModal();
     } catch (err) {
       setError('Error al guardar la caracterización de agroturismo.');
-      console.error(err);
     }
   };
 

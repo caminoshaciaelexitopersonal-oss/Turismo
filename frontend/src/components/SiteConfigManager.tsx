@@ -33,7 +33,6 @@ export default function SiteConfigManager() {
       setConfig(data);
     } catch (err) {
       setError("No se pudo cargar la configuración del sitio.");
-      console.error(err);
     } finally {
       setIsLoading(false);
     }

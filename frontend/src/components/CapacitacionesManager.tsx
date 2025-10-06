@@ -19,7 +19,6 @@ const CapacitacionesManager: React.FC = () => {
             const data = await getCapacitaciones();
             setCapacitaciones(data);
         } catch (err) {
-            console.error("Error al cargar las capacitaciones:", err);
             setError("No se pudieron cargar las capacitaciones.");
         } finally {
             setIsLoading(false);

@@ -149,19 +149,10 @@ export default function Sidebar() {
       const menuData = response.data;
       setNavSections(menuData);
 
-      // Al cargar el menú, establecer la primera vista disponible como activa
-      if (user && menuData.length > 0) {
-        const firstAllowedLink = menuData
-          .flatMap(section => section.links)
-          .find(link => link.allowedRoles.includes(user.role));
-
-        if (firstAllowedLink) {
-          setActiveView(firstAllowedLink.href);
-        }
-      }
+      // La lógica para establecer la vista activa inicial se ha movido a DashboardPage.
+      // El Sidebar ya no es responsable de esta acción para evitar conflictos.
 
     } catch (err: any) {
-      console.error("Error al cargar el menú desde la API:", err);
       if (err.name === 'CanceledError' || err.name === 'AbortError') {
         setError("La petición ha tardado demasiado y ha sido cancelada.");
       } else {

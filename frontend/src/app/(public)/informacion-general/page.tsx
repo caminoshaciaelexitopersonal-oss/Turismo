@@ -35,7 +35,6 @@ export default function InformacionGeneralPage() {
       setContenidos(response.data.results);
     } catch (err) {
       setError('No se pudo cargar la información del municipio. Por favor, inténtelo de nuevo más tarde.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }

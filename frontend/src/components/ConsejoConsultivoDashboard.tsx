@@ -26,7 +26,6 @@ const ConsejoConsultivoDashboard: React.FC = () => {
           setError("No se encontró el formulario de caracterización para el Consejo Consultivo.");
         }
       } catch (err) {
-        console.error("Error fetching forms:", err);
         setError("No se pudo cargar el formulario de caracterización.");
       } finally {
         setIsLoading(false);

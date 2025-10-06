@@ -59,7 +59,6 @@ export default function PrestadorManager() {
       setPrestadores(response.data.results);
     } catch (err) {
       setError('No se pudo cargar la lista de prestadores.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -79,7 +78,6 @@ export default function PrestadorManager() {
       fetchPrestadores();
     } catch (err) {
       alert('Error al aprobar el prestador.');
-      console.error(err);
     }
   };
 
@@ -126,7 +124,6 @@ export default function PrestadorManager() {
       alert('Caracterización de Eventos guardada con éxito.');
       handleCloseModal();
     } catch (error) {
-      console.error('Error al guardar la caracterización de eventos:', error);
       alert('Error al guardar la caracterización de eventos.');
     }
   };
@@ -143,7 +140,6 @@ export default function PrestadorManager() {
       alert('Caracterización de Agroturismo guardada con éxito.');
       handleCloseModal();
     } catch (error) {
-      console.error('Error al guardar la caracterización de agroturismo:', error);
       alert('Error al guardar la caracterización de agroturismo.');
     }
   };
@@ -160,7 +156,6 @@ export default function PrestadorManager() {
         alert('Caracterización de Guía guardada con éxito.');
         handleCloseModal();
     } catch (error) {
-        console.error('Error al guardar la caracterización de guía:', error);
         alert('Error al guardar la caracterización de guía.');
     }
   };

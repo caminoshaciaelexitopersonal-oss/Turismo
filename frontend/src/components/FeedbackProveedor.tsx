@@ -17,7 +17,6 @@ const FeedbackProveedor = () => {
       setFeedback(response.results);
     } catch (err) {
       setError('No se pudo cargar el feedback.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }

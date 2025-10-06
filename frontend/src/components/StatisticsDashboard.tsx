@@ -92,7 +92,6 @@ export default function StatisticsDashboard() {
       link.parentNode?.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error("Error al exportar a Excel:", err);
       setError("No se pudo generar el reporte. Inténtelo de nuevo.");
     } finally {
       setIsExporting(false);

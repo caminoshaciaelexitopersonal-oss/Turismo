@@ -39,7 +39,6 @@ export default function MiViajePage() {
       setSavedItems(response.data);
     } catch (err) {
       setError('No se pudieron cargar tus elementos guardados.');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }

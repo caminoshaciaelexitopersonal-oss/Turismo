@@ -35,7 +35,6 @@ const Testimonios = () => {
         const response = await getPublicasFelicitaciones();
         setTestimonios(response);
       } catch (error) {
-        console.error("Error al cargar los testimonios:", error);
       } finally {
         setIsLoading(false);
       }

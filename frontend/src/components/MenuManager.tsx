@@ -236,7 +236,6 @@ export default function MenuManager() {
       setMenuItems(response.results || []);
     } catch (err) {
       setError("No se pudo cargar los elementos del menú.");
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -270,7 +269,8 @@ export default function MenuManager() {
                     container.splice(newIndex, 0, movedItem);
                 }
             } else {
-                 console.warn("Drag-and-drop reparenting is disabled. Please use the edit button.");
+                 // Drag-and-drop reparenting is disabled to maintain data integrity.
+                 // Users are encouraged to use the "Edit" button to change parent-child relationships.
             }
             return newItems;
         });

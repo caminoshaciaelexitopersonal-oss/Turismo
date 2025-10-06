@@ -51,7 +51,7 @@ export default function Footer() {
         const data: SiteConfig = await response.json();
         setConfig(data);
       } catch (error) {
-        console.error("No se pudo obtener la configuración del sitio:", error);
+        // Silently fail, the initial state will be used.
       }
     };
 

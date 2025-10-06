@@ -42,7 +42,6 @@ const HistoriaPage = () => {
         setHechos(data.sort((a, b) => a.ano - b.ano)); // Asegurar orden ascendente
       } catch (err) {
         setError('No se pudo cargar la historia del municipio. Por favor, intente más tarde.');
-        console.error(err);
       } finally {
         setIsLoading(false);
       }

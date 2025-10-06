@@ -34,7 +34,6 @@ function PrestadoresContent() {
         setError(null);
       } catch (err) {
         setError('No se pudo cargar la información. Por favor, inténtalo de nuevo más tarde.');
-        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -51,7 +50,6 @@ function PrestadoresContent() {
         setError(null);
       } catch (err) {
         setError('No se pudo cargar los prestadores. Por favor, inténtalo de nuevo.');
-        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -65,7 +63,6 @@ function PrestadoresContent() {
       const prestadorDetails = await getPrestadorById(prestadorId);
       setSelectedPrestador(prestadorDetails);
     } catch (error) {
-      console.error("Error al cargar detalles del prestador:", error);
       // Opcional: mostrar un toast o mensaje de error
     } finally {
       setIsModalLoading(false);

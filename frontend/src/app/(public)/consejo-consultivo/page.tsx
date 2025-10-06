@@ -34,7 +34,6 @@ export default function ConsejoConsultivoPage() {
         setPublicaciones(response.data);
       } catch (err) {
         setError('No se pudo cargar la información. Por favor, intente de nuevo más tarde.');
-        console.error(err);
       } finally {
         setIsLoading(false);
       }

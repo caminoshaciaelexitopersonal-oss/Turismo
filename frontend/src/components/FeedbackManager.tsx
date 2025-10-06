@@ -20,7 +20,7 @@ const FeedbackManager = () => {
       const response = await getAdminSugerencias(filter || undefined);
       setSugerencias(response.results);
     } catch (err) {
-      console.error("No se pudo cargar la lista de sugerencias.", err);
+      // Error is handled by not setting the data and letting the UI show a message.
     } finally {
       setIsLoading(false);
     }

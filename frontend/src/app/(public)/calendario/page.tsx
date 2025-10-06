@@ -55,7 +55,6 @@ export default function CalendarioPage() {
 
       } catch (err) {
         setError('No se pudieron cargar las actividades. Por favor, intente de nuevo más tarde.');
-        console.error(err);
       } finally {
         setIsLoading(false);
       }

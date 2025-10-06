@@ -52,7 +52,6 @@ const FormFiller = ({ form, onBack }: FormFillerProps) => {
       }
     } catch (err) {
       setError('Hubo un error al enviar el formulario. Por favor, inténtelo de nuevo.');
-      console.error(err);
     } finally {
       setIsSubmitting(false);
     }

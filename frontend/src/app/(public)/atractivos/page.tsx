@@ -48,7 +48,6 @@ export default function AtractivosPage() {
         setAtractivos(response.data);
       } catch (err) {
         setError('No se pudieron cargar los atractivos. Por favor, intente de nuevo más tarde.');
-        console.error(err);
       } finally {
         setIsLoading(false);
       }
