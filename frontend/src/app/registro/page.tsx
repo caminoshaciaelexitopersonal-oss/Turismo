@@ -148,7 +148,7 @@ export default function RegisterPage() {
               <option value="TURISTA">Turista</option>
               <option value="PRESTADOR">Prestador de Servicios Turísticos</option>
               <option value="ARTESANO">Artesano</option>
-              <option value="ADMINISTRADOR">Administrador</option>
+              <option value="ADMIN">Administrador</option>
               <option value="FUNCIONARIO_DIRECTIVO">Funcionario Directivo</option>
               <option value="FUNCIONARIO_PROFESIONAL">Funcionario Profesional</option>
             </select>
@@ -201,7 +201,7 @@ export default function RegisterPage() {
           )}
 
           {/* --- Campos para Administrador --- */}
-          {role === 'ADMINISTRADOR' && (
+          {role === 'ADMIN' && (
             <div className="p-4 space-y-4 border-l-4 border-red-500 bg-red-50">
                 <h3 className="font-medium text-gray-800">Información del Administrador</h3>
                 <FormField name="cargo" label="Cargo" register={register} errors={errors} required />

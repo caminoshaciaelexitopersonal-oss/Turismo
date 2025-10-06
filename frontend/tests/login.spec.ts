@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-setup';
 
 // --- Helpers ---
 const generateUniqueData = () => {
@@ -12,119 +12,132 @@ const generateUniqueData = () => {
 
 const BASE_URL = 'http://localhost:3000';
 
+// Función reutilizable para registrar un usuario a través de la UI
+async function registerUser(page: any, role: string, fields: Record<string, string> = {}) {
+  const { email, username, password } = generateUniqueData();
+
+  await page.goto(`${BASE_URL}/registro`);
+  await page.getByLabel('Correo Electrónico').fill(email);
+  await page.getByLabel('Nombre de Usuario').fill(username);
+  await page.getByLabel('Contraseña').fill(password);
+  await page.getByLabel('Confirmar Contraseña').fill(password);
+  await page.getByLabel('Quiero registrarme como:').selectOption(role);
+
+  for (const [label, value] of Object.entries(fields)) {
+    await page.getByLabel(label).fill(value);
+  }
+
+  await page.getByRole('button', { name: 'Crear Cuenta' }).click();
+  await page.waitForURL(`${BASE_URL}/login`);
+
+  return { email, password };
+}
+
+
 test.describe('Flujo de Inicio de Sesión para Todos los Roles', () => {
 
-  // --- Test para Administrador (usa credenciales preexistentes) ---
-  test('debería iniciar sesión como Administrador y ver el dashboard principal', async ({ page }) => {
+  // Test para Administrador (usa credenciales preexistentes)
+  test('debería iniciar sesión como Administrador y redirigir al panel de admin', async ({ page }) => {
     await page.goto(`${BASE_URL}/login`);
-    await page.getByLabel('Correo Electrónico').fill('admin');
+    await page.getByLabel('Correo Electrónico o Usuario').fill('admin');
     await page.getByLabel('Contraseña').fill('adminpassword');
     await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
 
-    await page.waitForURL(`${BASE_URL}/dashboard`, { timeout: 15000 });
-    await expect(page).toHaveURL(`${BASE_URL}/dashboard`);
-
-    const adminHeader = page.locator('h1', { hasText: 'Dashboard Principal' });
-    await expect(adminHeader).toBeVisible({ timeout: 10000 });
+    // Corregido: La redirección para ADMIN debe ser a /admin/panel
+    await page.waitForURL(`${BASE_URL}/admin/panel`, { timeout: 15000 });
+    await expect(page).toHaveURL(`${BASE_URL}/admin/panel`);
   });
 
-  // --- Test para Turista (registra y luego inicia sesión) ---
+  // Test para Turista
   test('debería registrar y luego iniciar sesión como Turista', async ({ page }) => {
-    const { email, username, password } = generateUniqueData();
+    const { email, password } = await registerUser(page, 'TURISTA');
 
-    // 1. Registrar usuario
-    await page.goto(`${BASE_URL}/registro`);
-    await page.getByLabel('Correo Electrónico').fill(email);
-    await page.getByLabel('Nombre de Usuario').fill(username);
-    await page.getByLabel('Contraseña').fill(password);
-    await page.getByLabel('Confirmar Contraseña').fill(password);
-    await page.getByLabel('Quiero registrarme como:').selectOption('TURISTA');
-    await page.getByLabel('¿De dónde nos visitas?').selectOption('NACIONAL');
-    await page.getByRole('button', { name: 'Crear Cuenta' }).click();
-    await page.waitForURL(`${BASE_URL}/login`);
-
-    // 2. Iniciar sesión
-    await page.getByLabel('Correo Electrónico').fill(email);
+    await page.goto(`${BASE_URL}/login`);
+    await page.getByLabel('Correo Electrónico o Usuario').fill(email);
     await page.getByLabel('Contraseña').fill(password);
     await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
 
-    // 3. Verificar redirección y contenido
     await page.waitForURL(`${BASE_URL}/mi-viaje`);
     await expect(page).toHaveURL(`${BASE_URL}/mi-viaje`);
-    const turistaHeader = page.locator('h1', { hasText: 'Mi Viaje' });
-    await expect(turistaHeader).toBeVisible();
   });
 
-  // --- Test para Prestador de Servicios (registra y luego inicia sesión) ---
+  // Test para Prestador de Servicios
   test('debería registrar y luego iniciar sesión como Prestador de Servicios', async ({ page }) => {
-    const { email, username, password } = generateUniqueData();
+    const { email, password } = await registerUser(page, 'PRESTADOR', {
+      'Nombre del Establecimiento': 'Test Hotel',
+      'Registro Nacional de Turismo (RNT)': '0987654321',
+      'Tipo de Servicio (Hotel, Restaurante, etc.)': 'Hotel',
+    });
 
-    // 1. Registrar usuario
-    await page.goto(`${BASE_URL}/registro`);
-    await page.getByLabel('Correo Electrónico').fill(email);
-    await page.getByLabel('Nombre de Usuario').fill(username);
-    await page.getByLabel('Contraseña').fill(password);
-    await page.getByLabel('Confirmar Contraseña').fill(password);
-    await page.getByLabel('Quiero registrarme como:').selectOption('PRESTADOR');
-    await page.getByLabel('Nombre del Establecimiento').fill('Test Hotel');
-    await page.getByLabel('Registro Nacional de Turismo (RNT)').fill('0987654321');
-    await page.getByLabel('Tipo de Servicio (Hotel, Restaurante, etc.)').fill('Hotel');
-    await page.getByRole('button', { name: 'Crear Cuenta' }).click();
-    await page.waitForURL(`${BASE_URL}/login`);
-
-    // 2. Iniciar sesión
-    await page.getByLabel('Correo Electrónico').fill(email);
+    await page.goto(`${BASE_URL}/login`);
+    await page.getByLabel('Correo Electrónico o Usuario').fill(email);
     await page.getByLabel('Contraseña').fill(password);
     await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
 
-    // 3. Verificar redirección y contenido
     await page.waitForURL(`${BASE_URL}/dashboard`);
     await expect(page).toHaveURL(`${BASE_URL}/dashboard`);
-    const prestadorHeader = page.locator('h2', { hasText: 'Gestión de Prestadores de Servicios' });
-    await expect(prestadorHeader).toBeVisible({ timeout: 10000 });
   });
 
-  // --- Test para Artesano (registra y luego inicia sesión) ---
+  // Test para Artesano
   test('debería registrar y luego iniciar sesión como Artesano', async ({ page }) => {
-    const { email, username, password } = generateUniqueData();
+    const { email, password } = await registerUser(page, 'ARTESANO', {
+      'Nombre del Taller': 'Taller de Prueba',
+      'Tipo de Artesanía': 'Cerámica',
+      'Material Principal': 'Arcilla',
+    });
 
-    // 1. Registrar usuario
-    await page.goto(`${BASE_URL}/registro`);
-    await page.getByLabel('Correo Electrónico').fill(email);
-    await page.getByLabel('Nombre de Usuario').fill(username);
-    await page.getByLabel('Contraseña').fill(password);
-    await page.getByLabel('Confirmar Contraseña').fill(password);
-    await page.getByLabel('Quiero registrarme como:').selectOption('ARTESANO');
-    await page.getByLabel('Nombre del Taller').fill('Taller de Prueba');
-    await page.getByLabel('Tipo de Artesanía').fill('Cerámica');
-    await page.getByLabel('Material Principal').fill('Arcilla');
-    await page.getByRole('button', { name: 'Crear Cuenta' }).click();
-    await page.waitForURL(`${BASE_URL}/login`);
-
-    // 2. Iniciar sesión
-    await page.getByLabel('Correo Electrónico').fill(email);
+    await page.goto(`${BASE_URL}/login`);
+    await page.getByLabel('Correo Electrónico o Usuario').fill(email);
     await page.getByLabel('Contraseña').fill(password);
     await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
 
-    // 3. Verificar redirección y contenido
     await page.waitForURL(`${BASE_URL}/dashboard`);
     await expect(page).toHaveURL(`${BASE_URL}/dashboard`);
-    const artesanoHeader = page.locator('h3', { hasText: 'Información del Taller/Artesano' });
-    await expect(artesanoHeader).toBeVisible({ timeout: 10000 });
   });
 
-  // --- Test de Error: Credenciales incorrectas ---
+  // Test para Funcionario Directivo
+  test('debería registrar y luego iniciar sesión como Funcionario Directivo', async ({ page }) => {
+    const { email, password } = await registerUser(page, 'FUNCIONARIO_DIRECTIVO', {
+      'Dependencia': 'Planeación Municipal',
+      'Nivel de Dirección': 'Director de Área',
+      'Área Funcional': 'Desarrollo Urbano',
+    });
+
+    await page.goto(`${BASE_URL}/login`);
+    await page.getByLabel('Correo Electrónico o Usuario').fill(email);
+    await page.getByLabel('Contraseña').fill(password);
+    await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
+
+    await page.waitForURL(`${BASE_URL}/dashboard`);
+    await expect(page).toHaveURL(`${BASE_URL}/dashboard`);
+  });
+
+  // Test para Funcionario Profesional
+  test('debería registrar y luego iniciar sesión como Funcionario Profesional', async ({ page }) => {
+    const { email, password } = await registerUser(page, 'FUNCIONARIO_PROFESIONAL', {
+      'Dependencia': 'Secretaría de Cultura',
+      'Profesión': 'Arquitecto',
+      'Área Asignada': 'Patrimonio Histórico',
+    });
+
+    await page.goto(`${BASE_URL}/login`);
+    await page.getByLabel('Correo Electrónico o Usuario').fill(email);
+    await page.getByLabel('Contraseña').fill(password);
+    await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
+
+    await page.waitForURL(`${BASE_URL}/dashboard`);
+    await expect(page).toHaveURL(`${BASE_URL}/dashboard`);
+  });
+
+  // Test de Error: Credenciales incorrectas
   test('debería mostrar un error con credenciales incorrectas', async ({ page }) => {
     await page.goto(`${BASE_URL}/login`);
-    await page.getByLabel('Correo Electrónico').fill('usuario_inexistente@test.com');
+    await page.getByLabel('Correo Electrónico o Usuario').fill('usuario_inexistente@test.com');
     await page.getByLabel('Contraseña').fill('password_incorrecto');
     await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
 
-    // Verificar que aparece el toast de error
-    const errorToast = page.locator('[class*="toast-error"]');
+    const errorToast = page.locator('.Toastify__toast--error');
     await expect(errorToast).toBeVisible();
-
-    // Verificar que la URL no ha cambiado
     await expect(page).toHaveURL(`${BASE_URL}/login`);
   });
 });

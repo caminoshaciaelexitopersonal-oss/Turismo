@@ -25,19 +25,22 @@ interface User {
     | 'TURISTA';
 }
 
+// Unificamos los roles para que coincidan con el backend
+export type UserRole =
+  | 'TURISTA'
+  | 'PRESTADOR'
+  | 'ARTESANO'
+  | 'ADMIN'
+  | 'FUNCIONARIO_DIRECTIVO'
+  | 'FUNCIONARIO_PROFESIONAL';
+
 export interface RegisterData {
   // Campos comunes
   username?: string;
   email: string;
   password1: string;
-  password2:string;
-  role:
-    | 'TURISTA'
-    | 'PRESTADOR'
-    | 'ARTESANO'
-    | 'ADMINISTRADOR'
-    | 'FUNCIONARIO_DIRECTIVO'
-    | 'FUNCIONARIO_PROFESIONAL';
+  password2: string;
+  role: UserRole;
 
   // Campos para Turista
   origen?: 'LOCAL' | 'REGIONAL' | 'NACIONAL' | 'EXTRANJERO' | '';
@@ -156,13 +159,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (userData) {
         toast.success(`¡Bienvenido, ${userData.username}!`);
 
-        // La lógica de redirección se basa en la ruta de la página, no en la vista interna.
-        // La vista interna será gestionada por el propio Dashboard.
+        // Redirección basada en el rol del usuario, según los requisitos.
+        let redirectPath = '/dashboard';
         if (userData.role === 'TURISTA') {
-          router.push('/mi-viaje');
-        } else {
-          router.push('/dashboard');
+          redirectPath = '/mi-viaje';
+        } else if (userData.role === 'ADMIN') {
+          // El rol de Admin tiene un panel específico
+          redirectPath = '/admin/panel';
         }
+
+        router.push(redirectPath);
+
       } else {
         throw new Error("No se pudieron obtener los datos del usuario tras el login.");
       }
@@ -256,13 +263,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const register = async (data: RegisterData) => {
-    // Determinar el endpoint correcto. El default es para PRESTADOR y los roles de ADMIN/FUNCIONARIO.
-    let endpoint = '/auth/registration/';
-    if (data.role === 'TURISTA') {
-      endpoint = '/auth/registration/turista/';
-    } else if (data.role === 'ARTESANO') {
-      endpoint = '/auth/registration/artesano/';
-    }
+    // Mapeo de roles a endpoints de registro para mayor claridad y mantenibilidad.
+    const registrationEndpoints: Record<UserRole, string> = {
+      TURISTA: '/auth/registration/turista/',
+      PRESTADOR: '/auth/registration/prestador/',
+      ARTESANO: '/auth/registration/artesano/',
+      ADMIN: '/auth/registration/administrador/',
+      FUNCIONARIO_DIRECTIVO: '/auth/registration/funcionario_directivo/',
+      FUNCIONARIO_PROFESIONAL: '/auth/registration/funcionario_profesional/',
+    };
+
+    const endpoint = registrationEndpoints[data.role];
 
     // Construir el payload base con campos comunes
     const payload: { [key: string]: any } = {
@@ -291,7 +302,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         payload.tipo_artesania = data.tipo_artesania;
         payload.material_principal = data.material_principal;
         break;
-      case 'ADMINISTRADOR':
+      case 'ADMIN':
         payload.cargo = data.cargo;
         payload.dependencia_asignada = data.dependencia_asignada;
         payload.nivel_acceso = data.nivel_acceso;

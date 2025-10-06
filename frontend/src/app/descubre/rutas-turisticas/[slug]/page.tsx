@@ -12,7 +12,8 @@ import Lightbox from 'yet-another-react-lightbox';
 // Reutilizamos un componente de tarjeta similar al del directorio de prestadores
 function AssociatedCard({ item }: { item: PrestadorPublico }) {
   const isPrestador = 'categoria_nombre' in item;
-  const link = isPrestador ? `/prestadores/${item.id}` : `/atractivos/${item.slug}`;
+  // Corregido: Se actualizan las rutas para que coincidan con la nueva estructura.
+  const link = isPrestador ? `/directorio/prestadores/${item.id}` : `/descubre/atractivos/${item.slug}`;
 
   return (
     <Link href={link} passHref>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -86,7 +86,7 @@ export default function MiViajePage() {
         {savedItems.length === 0 ? (
           <div className="text-center bg-white p-10 rounded-lg shadow-md">
             <p className="text-gray-500">Aún no has guardado ningún elemento.</p>
-            <Link href="/atractivos" className="mt-4 inline-block text-indigo-600 hover:underline">
+            <Link href="/descubre/atractivos" className="mt-4 inline-block text-indigo-600 hover:underline">
               ¡Empieza a explorar atractivos!
             </Link>
           </div>
@@ -112,7 +112,7 @@ export default function MiViajePage() {
                       </div>
                       <div className="p-4">
                         <h3 className="font-bold text-lg">{item.content_object.nombre}</h3>
-                        <Link href={`/atractivos/${item.content_object.slug}`} className="text-sm text-indigo-600 hover:underline">Ver detalles</Link>
+                        <Link href={`/descubre/atractivos/${item.content_object.slug}`} className="text-sm text-indigo-600 hover:underline">Ver detalles</Link>
                       </div>
                     </div>
                   ))}
@@ -129,6 +129,7 @@ export default function MiViajePage() {
                     <div key={item.id} className="flex items-center justify-between border-b pb-2">
                       <div>
                         <h3 className="font-semibold">{item.content_object.titulo}</h3>
+                        {/* Corregido: Se vuelve a la ruta original de publicaciones. */}
                         <Link href={`/publicaciones/${item.content_object.slug}`} className="text-sm text-indigo-600 hover:underline">Ver detalles</Link>
                       </div>
                       <button onClick={() => handleRemove(item)} className="text-red-500 hover:text-red-700">

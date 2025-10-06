@@ -106,7 +106,8 @@ export default function AtractivosPage() {
                     <div className="p-4 flex flex-col flex-grow">
                         <h3 className="text-lg font-bold mb-1">{atractivo.nombre}</h3>
                         <p className="text-xs text-gray-700 flex-grow mb-3 line-clamp-3">{atractivo.descripcion || "Sin descripción disponible."}</p>
-                        <Link href={`/atractivos/${atractivo.slug}`} className="mt-auto w-full bg-blue-600 text-white px-4 py-2 rounded text-center hover:bg-blue-700 transition-colors">
+                        {/* Corregido: Se actualiza la ruta para que coincida con la nueva estructura. */}
+                        <Link href={`/descubre/atractivos/${atractivo.slug}`} className="mt-auto w-full bg-blue-600 text-white px-4 py-2 rounded text-center hover:bg-blue-700 transition-colors">
                             Ver más
                         </Link>
                     </div>

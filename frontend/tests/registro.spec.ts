@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './test-setup';
 
 // --- Helper para generar datos únicos ---
 const generateUniqueEmail = () => {
@@ -17,8 +17,8 @@ test.describe('Flujo de Registro de Usuarios', () => {
 
   const password = 'password123';
 
-  // --- Caso de Éxito: Registro de Turista ---
-  test('debería registrar un Turista exitosamente', async ({ page }) => {
+  // --- Caso de Éxito: Registro de Turista (Nacional) ---
+  test('debería registrar un Turista Nacional exitosamente', async ({ page }) => {
     const email = generateUniqueEmail();
     const username = generateUniqueUsername();
 
@@ -43,6 +43,32 @@ test.describe('Flujo de Registro de Usuarios', () => {
     await page.waitForURL(`${BASE_URL}/login`, { timeout: 5000 });
     await expect(page).toHaveURL(`${BASE_URL}/login`);
   });
+
+  // --- Caso de Éxito: Registro de Turista (Extranjero) ---
+  test('debería registrar un Turista Extranjero exitosamente', async ({ page }) => {
+    const email = generateUniqueEmail();
+    const username = generateUniqueUsername();
+
+    await page.goto(`${BASE_URL}/registro`);
+
+    await page.getByLabel('Correo Electrónico').fill(email);
+    await page.getByLabel('Nombre de Usuario').fill(username);
+    await page.getByLabel('Contraseña').fill(password);
+    await page.getByLabel('Confirmar Contraseña').fill(password);
+
+    await page.getByLabel('Quiero registrarme como:').selectOption('TURISTA');
+
+    // Rellenar campos de turista
+    await page.getByLabel('¿De dónde nos visitas?').selectOption('EXTRANJERO');
+    await page.getByLabel('País de Origen').fill('Alemania');
+
+    await page.getByRole('button', { name: 'Crear Cuenta' }).click();
+
+    await expect(page.locator('text=¡Registro exitoso!')).toBeVisible({ timeout: 10000 });
+    await page.waitForURL(`${BASE_URL}/login`);
+    await expect(page).toHaveURL(`${BASE_URL}/login`);
+  });
+
 
   // --- Caso de Éxito: Registro de Prestador ---
   test('debería registrar un Prestador de Servicios exitosamente', async ({ page }) => {
@@ -108,7 +134,8 @@ test.describe('Flujo de Registro de Usuarios', () => {
     await page.getByLabel('Contraseña').fill(password);
     await page.getByLabel('Confirmar Contraseña').fill(password);
 
-    await page.getByLabel('Quiero registrarme como:').selectOption('ADMINISTRADOR');
+    // Corregido de 'ADMINISTRADOR' a 'ADMIN'
+    await page.getByLabel('Quiero registrarme como:').selectOption('ADMIN');
 
     // Rellenar campos de administrador
     await page.getByLabel('Cargo').fill('Admin Principal');
@@ -121,6 +148,59 @@ test.describe('Flujo de Registro de Usuarios', () => {
     await page.waitForURL(`${BASE_URL}/login`);
     await expect(page).toHaveURL(`${BASE_URL}/login`);
   });
+
+  // --- Caso de Éxito: Registro de Funcionario Directivo ---
+  test('debería registrar un Funcionario Directivo exitosamente', async ({ page }) => {
+    const email = generateUniqueEmail();
+    const username = generateUniqueUsername();
+
+    await page.goto(`${BASE_URL}/registro`);
+
+    await page.getByLabel('Correo Electrónico').fill(email);
+    await page.getByLabel('Nombre de Usuario').fill(username);
+    await page.getByLabel('Contraseña').fill(password);
+    await page.getByLabel('Confirmar Contraseña').fill(password);
+
+    await page.getByLabel('Quiero registrarme como:').selectOption('FUNCIONARIO_DIRECTIVO');
+
+    // Rellenar campos de funcionario directivo
+    await page.getByLabel('Dependencia').fill('Planeación Municipal');
+    await page.getByLabel('Nivel de Dirección').fill('Director de Área');
+    await page.getByLabel('Área Funcional').fill('Desarrollo Urbano');
+
+    await page.getByRole('button', { name: 'Crear Cuenta' }).click();
+
+    await expect(page.locator('text=¡Registro exitoso!')).toBeVisible({ timeout: 10000 });
+    await page.waitForURL(`${BASE_URL}/login`);
+    await expect(page).toHaveURL(`${BASE_URL}/login`);
+  });
+
+  // --- Caso de Éxito: Registro de Funcionario Profesional ---
+  test('debería registrar un Funcionario Profesional exitosamente', async ({ page }) => {
+    const email = generateUniqueEmail();
+    const username = generateUniqueUsername();
+
+    await page.goto(`${BASE_URL}/registro`);
+
+    await page.getByLabel('Correo Electrónico').fill(email);
+    await page.getByLabel('Nombre de Usuario').fill(username);
+    await page.getByLabel('Contraseña').fill(password);
+    await page.getByLabel('Confirmar Contraseña').fill(password);
+
+    await page.getByLabel('Quiero registrarme como:').selectOption('FUNCIONARIO_PROFESIONAL');
+
+    // Rellenar campos de funcionario profesional
+    await page.getByLabel('Dependencia').fill('Secretaría de Cultura');
+    await page.getByLabel('Profesión').fill('Arquitecto');
+    await page.getByLabel('Área Asignada').fill('Patrimonio Histórico');
+
+    await page.getByRole('button', { name: 'Crear Cuenta' }).click();
+
+    await expect(page.locator('text=¡Registro exitoso!')).toBeVisible({ timeout: 10000 });
+    await page.waitForURL(`${BASE_URL}/login`);
+    await expect(page).toHaveURL(`${BASE_URL}/login`);
+  });
+
 
   // --- Caso de Error: Contraseñas no coinciden ---
   test('debería mostrar un error si las contraseñas no coinciden', async ({ page }) => {
@@ -167,8 +247,7 @@ test.describe('Flujo de Registro de Usuarios', () => {
     await page.getByRole('button', { name: 'Crear Cuenta' }).click();
 
     // Verificar el toast de error del backend (el mensaje puede variar)
-    await expect(page.locator('[class*="toast-error"]')).toBeVisible();
-    await expect(page.locator('text=/email/i')).toBeVisible(); // Buscar un error que mencione "email"
+    await expect(page.locator('.Toastify__toast--error')).toBeVisible();
 
     // Verificar que no se redirige
     await expect(page).toHaveURL(`${BASE_URL}/registro`);
