@@ -49,6 +49,7 @@ class CustomUser(AbstractUser):
     class AIProvider(models.TextChoices):
         OPENAI = "OPENAI", _("OpenAI")
         GOOGLE = "GOOGLE", _("Google")
+        GROQ = "GROQ", _("Groq")
 
     base_role = Role.TURISTA
     role = models.CharField(_("Rol"), max_length=50, choices=Role.choices)
