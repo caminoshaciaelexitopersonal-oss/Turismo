@@ -11,7 +11,10 @@ from .models import (
     ItemVerificacion,
     Verificacion,
     RespuestaItemVerificacion,
-    AsistenciaCapacitacion
+    AsistenciaCapacitacion,
+    PerfilAdministrador,
+    PerfilFuncionarioDirectivo,
+    PerfilFuncionarioProfesional
 )
 from django.db import transaction
 
@@ -532,6 +535,63 @@ class ArtesanoRegisterSerializer(RegisterSerializer):
             usuario=user,
             nombre_artesano=user.get_full_name() or user.username,
             nombre_taller=f"Taller de {user.username}"
+        )
+        return user
+
+
+class AdministradorRegisterSerializer(RegisterSerializer):
+    cargo = serializers.CharField(max_length=150, required=True)
+    dependencia_asignada = serializers.CharField(max_length=150, required=True)
+    nivel_acceso = serializers.CharField(max_length=150, required=True)
+
+    @transaction.atomic
+    def save(self, request):
+        user = super().save(request)
+        user.role = CustomUser.Role.ADMIN
+        user.save()
+        PerfilAdministrador.objects.create(
+            usuario=user,
+            cargo=self.validated_data.get('cargo', ''),
+            dependencia_asignada=self.validated_data.get('dependencia_asignada', ''),
+            nivel_acceso=self.validated_data.get('nivel_acceso', '')
+        )
+        return user
+
+
+class FuncionarioDirectivoRegisterSerializer(RegisterSerializer):
+    dependencia = serializers.CharField(max_length=150, required=True)
+    nivel_direccion = serializers.CharField(max_length=150, required=True)
+    area_funcional = serializers.CharField(max_length=150, required=True)
+
+    @transaction.atomic
+    def save(self, request):
+        user = super().save(request)
+        user.role = CustomUser.Role.FUNCIONARIO_DIRECTIVO
+        user.save()
+        PerfilFuncionarioDirectivo.objects.create(
+            usuario=user,
+            dependencia=self.validated_data.get('dependencia', ''),
+            nivel_direccion=self.validated_data.get('nivel_direccion', ''),
+            area_funcional=self.validated_data.get('area_funcional', '')
+        )
+        return user
+
+
+class FuncionarioProfesionalRegisterSerializer(RegisterSerializer):
+    dependencia = serializers.CharField(max_length=150, required=True)
+    profesion = serializers.CharField(max_length=150, required=True)
+    area_asignada = serializers.CharField(max_length=150, required=True)
+
+    @transaction.atomic
+    def save(self, request):
+        user = super().save(request)
+        user.role = CustomUser.Role.FUNCIONARIO_PROFESIONAL
+        user.save()
+        PerfilFuncionarioProfesional.objects.create(
+            usuario=user,
+            dependencia=self.validated_data.get('dependencia', ''),
+            profesion=self.validated_data.get('profesion', ''),
+            area_asignada=self.validated_data.get('area_asignada', '')
         )
         return user
 
