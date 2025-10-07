@@ -81,6 +81,9 @@ from .serializers import (
     PrestadorRegisterSerializer,
     TuristaRegisterSerializer,
     ArtesanoRegisterSerializer,
+    AdministradorRegisterSerializer,
+    FuncionarioDirectivoRegisterSerializer,
+    FuncionarioProfesionalRegisterSerializer,
     ElementoGuardadoSerializer,
     ElementoGuardadoCreateSerializer,
     CategoriaPrestadorSerializer,
@@ -165,6 +168,19 @@ class TuristaRegisterView(RegisterView):
 
 class ArtesanoRegisterView(RegisterView):
     serializer_class = ArtesanoRegisterSerializer
+
+
+class AdministradorRegisterView(RegisterView):
+    serializer_class = AdministradorRegisterSerializer
+
+
+class FuncionarioDirectivoRegisterView(RegisterView):
+    serializer_class = FuncionarioDirectivoRegisterSerializer
+
+
+class FuncionarioProfesionalRegisterView(RegisterView):
+    serializer_class = FuncionarioProfesionalRegisterSerializer
+
 
 class DocumentoLegalizacionDetailView(generics.RetrieveDestroyAPIView):
     serializer_class = DocumentoLegalizacionSerializer
