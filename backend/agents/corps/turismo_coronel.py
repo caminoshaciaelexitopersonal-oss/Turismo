@@ -2,7 +2,7 @@ import json
 from typing import TypedDict, List, Any, Dict
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langgraph.graph import StateGraph, END
-from ai_models.llm_router import route_llm_request
+from api.llm_router import route_llm_request
 
 # --- Importamos a los comandantes de campo: los Capitanes ---
 from .units.admin_captain import get_admin_captain_graph
@@ -59,8 +59,7 @@ async def create_tactical_plan(state: TurismoColonelState) -> TurismoColonelStat
 
     # Extraer el contexto del usuario para el enrutador LLM
     user_context = state.get("app_context", {})
-    user_api_key = user_context.get("api_key")
-    user_provider = user_context.get("ai_provider")
+    user = user_context.get("user")
     conversation_history = state.get("conversation_history", [])
 
     # El prompt ahora es una guía clara para el LLM sobre sus capacidades
@@ -102,7 +101,7 @@ Analiza la siguiente orden y genera el plan táctico en formato JSON. Sé concis
 """
     try:
         # --- INVOCACIÓN DEL ROUTER HÍBRIDO ---
-        llm_response_str = route_llm_request(prompt, conversation_history, user_api_key, user_provider)
+        llm_response_str = await route_llm_request(prompt, conversation_history, user)
 
         # Parsear la respuesta JSON del LLM
         llm_response_json = json.loads(llm_response_str)

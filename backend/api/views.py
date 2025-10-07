@@ -54,7 +54,8 @@ from .models import (
     ItemVerificacion,
     Verificacion,
     RespuestaItemVerificacion,
-    AsistenciaCapacitacion
+    AsistenciaCapacitacion,
+    UserLLMConfig
 )
 from .serializers import (
     GaleriaItemSerializer,
@@ -128,7 +129,8 @@ from .serializers import (
     GuardarVerificacionSerializer,
     AIConfigSerializer,
     CapacitacionDetailSerializer,
-    RegistrarAsistenciaSerializer
+    RegistrarAsistenciaSerializer,
+    UserLLMConfigSerializer
 )
 from .permissions import (
     IsTurista,
@@ -398,6 +400,23 @@ class AIConfigView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class UserLLMConfigView(generics.RetrieveUpdateAPIView):
+    """
+    Permite a un usuario ver y actualizar su propia configuración de LLM.
+    Crea la configuración si no existe al primer acceso (GET o PUT).
+    """
+    serializer_class = UserLLMConfigSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        # `get_or_create` devuelve una tupla (objeto, creado_booleano)
+        config, created = UserLLMConfig.objects.get_or_create(user=self.request.user)
+        if created:
+            print(f"Nueva configuración LLM creada para el usuario: {self.request.user.username}")
+        return config
+
 
 class ImagenGaleriaView(generics.ListCreateAPIView):
     queryset = ImagenGaleria.objects.all()

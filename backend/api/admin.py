@@ -7,9 +7,9 @@ from .models import (
     RespuestaUsuario, PlantillaVerificacion, ItemVerificacion, Verificacion,
     RespuestaItemVerificacion, AsistenciaCapacitacion, SiteConfiguration, MenuItem,
     HomePageComponent, PaginaInstitucional, ImagenPaginaInstitucional, ContenidoMunicipio, HechoHistorico,
-    Resena, Sugerencia, AuditLog, RutaTuristica, ImagenRutaTuristica, Notificacion
+    Resena, Sugerencia, AuditLog, RutaTuristica, ImagenRutaTuristica, Notificacion,
+    UserLLMConfig
 )
-from ai_models.models import UserLLMConfig
 from django.utils.html import format_html
 
 # -- CONFIGURACIÓN GENERAL DEL SITIO --

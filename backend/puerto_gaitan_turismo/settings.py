@@ -61,7 +61,6 @@ INSTALLED_APPS = [
 
     # Mis Apps
     "api.apps.ApiConfig",
-    "ai_models.apps.AiModelsConfig",
 ]
 
 MIDDLEWARE = [

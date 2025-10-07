@@ -14,7 +14,8 @@ from .models import (
     AsistenciaCapacitacion,
     PerfilAdministrador,
     PerfilFuncionarioDirectivo,
-    PerfilFuncionarioProfesional
+    PerfilFuncionarioProfesional,
+    UserLLMConfig
 )
 from django.db import transaction
 
@@ -1021,4 +1022,27 @@ class AIConfigSerializer(serializers.ModelSerializer):
             instance.api_key = validated_data['api_key']
 
         instance.save(update_fields=['ai_provider', 'api_key'])
+        return instance
+
+
+# --- Serializador para Configuración LLM de Usuario ---
+
+class UserLLMConfigSerializer(serializers.ModelSerializer):
+    api_key = serializers.CharField(write_only=True, required=False, allow_blank=True, style={'input_type': 'password'})
+    api_key_masked = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserLLMConfig
+        fields = ['provider', 'api_key', 'api_key_masked', 'updated_at']
+        read_only_fields = ['updated_at', 'api_key_masked']
+
+    def get_api_key_masked(self, obj):
+        if obj.api_key:
+            return f"{obj.api_key[:5]}...{obj.api_key[-4:]}"
+        return "No configurada"
+
+    def update(self, instance, validated_data):
+        instance.api_key = validated_data.get('api_key', instance.api_key)
+        instance.provider = validated_data.get('provider', instance.provider)
+        instance.save()
         return instance

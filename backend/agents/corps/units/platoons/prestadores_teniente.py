@@ -1,7 +1,8 @@
+import json
 from typing import TypedDict, Any, List
 from langchain_core.pydantic_v1 import BaseModel, Field
-from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
+from api.llm_router import route_llm_request
 
 # --- Importamos a los comandantes de escuadra: los Sargentos Especialistas ---
 from .squads.gestion_hoteles_sargento import get_gestion_hoteles_sargento_graph
@@ -48,37 +49,46 @@ sargentos = {
 # --- NODOS DEL GRAFO ORQUESTADOR DEL TENIENTE ---
 
 async def create_sargento_plan(state: PrestadoresLieutenantState) -> PrestadoresLieutenantState:
-    """(NODO 1: PLANIFICADOR) Analiza la orden del Capitán y la descompone en misiones para los Sargentos especialistas."""
+    """(NODO 1: PLANIFICADOR) Analiza la orden del Capitán, la enruta al LLM adecuado y la descompone en misiones para los Sargentos."""
     print("--- 🧠 TTE. PRESTADORES: Creando Plan de Escuadra... ---")
-    # Se instancia el LLM aquí para evitar errores de API Key al cargar el módulo
-    llm = ChatOpenAI(api_key="test_key", model="gpt-4o", temperature=0, model_kwargs={"response_format": {"type": "json_object"}})
-    structured_llm = llm.with_structured_output(SargentoPlan)
+
+    user = state['app_context'].get('user')
+    # El historial de conversación se pasa vacío ya que el Teniente inicia un nuevo sub-plan.
+    conversation_history = []
+
     prompt = f"""
 Eres un Teniente de Prestadores de Servicios Turísticos. Tu Capitán te ha dado una orden.
-Tu deber es descomponerla en un plan, asignando cada misión al Sargento especialista correcto.
+Tu deber es descomponerla en un plan táctico, asignando cada misión al Sargento especialista correcto.
+Debes devolver SIEMPRE una respuesta en formato JSON válido, siguiendo la estructura de la clase `SargentoPlan`.
 
 Sargentos bajo tu mando y sus especialidades:
-- 'Hoteles': Gestiona todo lo relacionado con hoteles, hostales, etc. (incluyendo perfiles y ocupación).
-- 'Restaurantes': Gestiona restaurantes, cafés, etc. (incluyendo perfiles y menús).
-- 'Guias': Gestiona guías de turismo y sus asociaciones.
+- 'Hoteles': Gestiona todo lo relacionado con hoteles, hostales, etc.
+- 'Restaurantes': Gestiona restaurantes, cafés, etc.
+- 'Guias': Gestiona guías de turismo.
 - 'Agencias': Gestiona agencias de viajes.
 - 'Transporte': Gestiona empresas de transporte turístico.
-- 'Generico': Usa este sargento para tareas generales sobre prestadores que no encajan en una especialidad, como listar todas las categorías o realizar búsquedas amplias.
+- 'Generico': Usa este sargento para tareas generales sobre prestadores que no encajan en una especialidad.
 
 Analiza la orden de tu Capitán y genera el plan de escuadra en formato JSON:
 "{state['captain_order']}"
 """
     try:
-        plan = await structured_llm.ainvoke(prompt)
+        # --- INVOCACIÓN DEL ROUTER HÍBRIDO ---
+        llm_response_str = route_llm_request(prompt, conversation_history, user)
+        llm_response_json = json.loads(llm_response_str)
+        plan = SargentoPlan.parse_obj(llm_response_json)
+
         state.update({
             "sargento_plan": plan,
             "task_queue": plan.plan.copy(),
             "completed_missions": [],
             "error": None
         })
-        return state
+    except json.JSONDecodeError as e:
+        state["error"] = f"Error crítico (Teniente): El LLM devolvió un JSON inválido. Respuesta: '{llm_response_str}'. Error: {e}"
     except Exception as e:
-        state["error"] = f"No se pudo crear un plan de escuadra: {e}"; return state
+        state["error"] = f"No se pudo crear un plan de escuadra: {e}"
+    return state
 
 def route_to_sargento(state: PrestadoresLieutenantState):
     """(NODO 2: ENRUTADOR) Lee la siguiente misión y dirige el flujo al Sargento correcto."""

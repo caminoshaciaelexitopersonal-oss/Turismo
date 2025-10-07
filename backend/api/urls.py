@@ -46,9 +46,9 @@ opciones_router.register(r'opciones', views.OpcionRespuestaViewSet, basename='pr
 urlpatterns = [
     # --- Configuración del Sitio (Acceso Público/Restringido) ---
     path('config/site-config/', views.SiteConfigurationView.as_view(), name='site-configuration'),
-    path('config/', include('ai_models.urls')),
 
     # --- Vistas Privadas (Requieren Autenticación) ---
+    path('config/my-llm/', views.UserLLMConfigView.as_view(), name='user-llm-config'),
     path('profile/prestador/', views.PrestadorProfileView.as_view(), name='prestador-profile'),
     path('profile/artesano/', views.ArtesanoProfileView.as_view(), name='artesano-profile'),
     path('profile/feedback/', views.FeedbackProveedorView.as_view(), name='proveedor-feedback'),

@@ -109,3 +109,12 @@ class SargentoGraphBuilder:
         workflow.add_edge("compile_report", END)
 
         return workflow.compile()
+
+
+def get_sargento_base_graph():
+    """
+    Función de compilación para el Sargento Base.
+    Utiliza un conjunto de herramientas vacío, ya que es una plantilla.
+    """
+    sargento_builder = SargentoGraphBuilder(squad=[], squad_name="Base")
+    return sargento_builder.build_graph()
