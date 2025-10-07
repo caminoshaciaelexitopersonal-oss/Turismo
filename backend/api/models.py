@@ -246,6 +246,48 @@ class Artesano(models.Model):
         verbose_name_plural = "Artesanos"
 
 
+class PerfilAdministrador(models.Model):
+    usuario = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="perfil_administrador")
+    cargo = models.CharField(_("Cargo"), max_length=150, blank=True, null=True)
+    dependencia_asignada = models.CharField(_("Dependencia Asignada"), max_length=150, blank=True, null=True)
+    nivel_acceso = models.CharField(_("Nivel de Acceso"), max_length=150, blank=True, null=True)
+
+    def __str__(self):
+        return f"Perfil de Administrador para {self.usuario.username}"
+
+    class Meta:
+        verbose_name = "Perfil de Administrador"
+        verbose_name_plural = "Perfiles de Administradores"
+
+
+class PerfilFuncionarioDirectivo(models.Model):
+    usuario = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="perfil_funcionario_directivo")
+    dependencia = models.CharField(_("Dependencia"), max_length=150, blank=True, null=True)
+    nivel_direccion = models.CharField(_("Nivel de Dirección"), max_length=150, blank=True, null=True)
+    area_funcional = models.CharField(_("Área Funcional"), max_length=150, blank=True, null=True)
+
+    def __str__(self):
+        return f"Perfil de Funcionario Directivo para {self.usuario.username}"
+
+    class Meta:
+        verbose_name = "Perfil de Funcionario Directivo"
+        verbose_name_plural = "Perfiles de Funcionarios Directivos"
+
+
+class PerfilFuncionarioProfesional(models.Model):
+    usuario = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="perfil_funcionario_profesional")
+    dependencia = models.CharField(_("Dependencia"), max_length=150, blank=True, null=True)
+    profesion = models.CharField(_("Profesión"), max_length=150, blank=True, null=True)
+    area_asignada = models.CharField(_("Área Asignada"), max_length=150, blank=True, null=True)
+
+    def __str__(self):
+        return f"Perfil de Funcionario Profesional para {self.usuario.username}"
+
+    class Meta:
+        verbose_name = "Perfil de Funcionario Profesional"
+        verbose_name_plural = "Perfiles de Funcionarios Profesionales"
+
+
 class ImagenArtesano(models.Model):
     artesano = models.ForeignKey(Artesano, on_delete=models.CASCADE, related_name="galeria_imagenes")
     imagen = models.ImageField(upload_to=galeria_artesano_directory_path)

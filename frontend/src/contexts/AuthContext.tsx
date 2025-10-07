@@ -256,12 +256,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const register = async (data: RegisterData) => {
-    // Determinar el endpoint correcto. El default es para PRESTADOR y los roles de ADMIN/FUNCIONARIO.
+    // Determinar el endpoint correcto. El default es para PRESTADOR.
     let endpoint = '/auth/registration/';
     if (data.role === 'TURISTA') {
       endpoint = '/auth/registration/turista/';
     } else if (data.role === 'ARTESANO') {
       endpoint = '/auth/registration/artesano/';
+    } else if (data.role === 'ADMINISTRADOR') {
+      endpoint = '/auth/registration/administrador/';
+    } else if (data.role === 'FUNCIONARIO_DIRECTIVO') {
+      endpoint = '/auth/registration/funcionario_directivo/';
+    } else if (data.role === 'FUNCIONARIO_PROFESIONAL') {
+      endpoint = '/auth/registration/funcionario_profesional/';
     }
 
     // Construir el payload base con campos comunes
