@@ -647,6 +647,14 @@ class SiteConfiguration(models.Model):
     seccion_atractivos_activa = models.BooleanField(_("Sección de Atractivos Turísticos Activa"), default=True, help_text="Marcar para mostrar la sección de atractivos turísticos.")
     seccion_prestadores_activa = models.BooleanField(_("Sección de Prestadores de Servicios Activa"), default=True, help_text="Marcar para mostrar el directorio de prestadores de servicios.")
     google_maps_api_key = EncryptedTextField(_("Google Maps API Key"), blank=True, null=True, help_text="Clave de API de Google Maps para todo el sitio.")
+
+    # --- Configuración del Router LLM ---
+    llm_routing_token_threshold = models.PositiveIntegerField(
+        _("Umbral de Tokens para Router LLM"),
+        default=1500,
+        help_text="Número de tokens en el historial de conversación para escalar al LLM avanzado (ej: Groq)."
+    )
+
     def __str__(self):
         return "Configuración General del Sitio"
     def save(self, *args, **kwargs):
