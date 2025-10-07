@@ -1,7 +1,8 @@
-from typing import TypedDict, List, Any
+import json
+from typing import TypedDict, List, Any, Dict
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langgraph.graph import StateGraph, END
-from langchain_openai import ChatOpenAI
+from ai_models.llm_router import route_llm_request
 
 # --- Importamos a los comandantes de campo: los Capitanes ---
 from .units.admin_captain import get_admin_captain_graph
@@ -29,6 +30,7 @@ class TurismoColonelState(TypedDict):
     """La pizarra táctica del Coronel de Turismo."""
     general_order: str
     app_context: Any
+    conversation_history: List[Dict[str, str]]
     tactical_plan: TacticalPlan | None
     task_queue: List[CaptainTask]
     completed_missions: list
@@ -52,15 +54,20 @@ capitanes = {
 # --- NODOS DEL GRAFO DE MANDO DEL CORONEL ---
 
 async def create_tactical_plan(state: TurismoColonelState) -> TurismoColonelState:
-    """(NODO 1: PLANIFICADOR TÁCTICO) Analiza la orden estratégica y la descompone en un plan de acción."""
+    """(NODO 1: PLANIFICADOR TÁCTICO) Analiza la orden, la enruta al LLM adecuado y descompone el resultado en un plan de acción."""
     print(f"--- 🧠 CORONEL DE TURISMO: Creando Plan Táctico... ---")
-    llm = ChatOpenAI(model="gpt-4o", temperature=0, model_kwargs={"response_format": {"type": "json_object"}})
-    structured_llm = llm.with_structured_output(TacticalPlan)
+
+    # Extraer el contexto del usuario para el enrutador LLM
+    user_context = state.get("app_context", {})
+    user_api_key = user_context.get("api_key")
+    user_provider = user_context.get("ai_provider")
+    conversation_history = state.get("conversation_history", [])
 
     # El prompt ahora es una guía clara para el LLM sobre sus capacidades
     base_prompt = f"""
 Eres el Coronel de la División de Turismo. Tu General (el usuario) te ha dado una orden estratégica.
 Tu deber es analizar esta orden y descomponerla en un plan táctico, asignando cada misión al Capitán especialista más adecuado.
+Debes devolver SIEMPRE una respuesta en formato JSON válido, siguiendo la estructura de la clase `TacticalPlan`.
 
 **Capitanes bajo tu mando y sus especialidades:**
 - **'Admin'**: Capitán de administración general. Asigna misiones de configuración del sitio, gestión de usuarios y moderación de alto nivel.
@@ -76,7 +83,7 @@ Tu deber es analizar esta orden y descomponerla en un plan táctico, asignando c
 
     # Doctrina especial para usuarios no registrados (invitados)
     guest_protocol = ""
-    if state.get("app_context", {}).get("is_guest", False):
+    if user_context.get("is_guest", False):
         guest_protocol = """
 
 **PROTOCOLO PARA VISITANTES (NO REGISTRADOS):**
@@ -94,13 +101,23 @@ Analiza la siguiente orden y genera el plan táctico en formato JSON. Sé concis
 **Orden: "{state['general_order']}"**
 """
     try:
-        plan = await structured_llm.ainvoke(prompt)
+        # --- INVOCACIÓN DEL ROUTER HÍBRIDO ---
+        llm_response_str = route_llm_request(prompt, conversation_history, user_api_key, user_provider)
+
+        # Parsear la respuesta JSON del LLM
+        llm_response_json = json.loads(llm_response_str)
+
+        # Validar y estructurar con Pydantic
+        plan = TacticalPlan.parse_obj(llm_response_json)
+
         state.update({
             "tactical_plan": plan,
             "task_queue": plan.plan.copy(),
             "completed_missions": [],
             "error": None
         })
+    except json.JSONDecodeError as e:
+        state["error"] = f"Error crítico: El LLM devolvió un JSON inválido. Respuesta: '{llm_response_str}'. Error: {e}"
     except Exception as e:
         state["error"] = f"Error crítico al planificar: {e}"
     return state
@@ -151,6 +168,13 @@ async def compile_final_report(state: TurismoColonelState) -> TurismoColonelStat
             for m in state["completed_missions"]
         ])
         state["final_report"] = f"Misión de la División de Turismo completada.\nResumen de Operaciones:\n{report_body}"
+
+    # Actualizar el historial de conversación para la próxima ronda
+    history = state.get("conversation_history", [])
+    history.append({"role": "user", "content": state["general_order"]})
+    history.append({"role": "assistant", "content": state["final_report"]})
+    state["conversation_history"] = history
+
     return state
 
 # --- ENSAMBLAJE DEL GRAFO DE MANDO DEL CORONEL ---

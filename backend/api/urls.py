@@ -46,6 +46,7 @@ opciones_router.register(r'opciones', views.OpcionRespuestaViewSet, basename='pr
 urlpatterns = [
     # --- Configuración del Sitio (Acceso Público/Restringido) ---
     path('config/site-config/', views.SiteConfigurationView.as_view(), name='site-configuration'),
+    path('config/', include('ai_models.urls')),
 
     # --- Vistas Privadas (Requieren Autenticación) ---
     path('profile/prestador/', views.PrestadorProfileView.as_view(), name='prestador-profile'),

@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { FiChevronDown, FiChevronRight, FiAlertCircle } from 'react-icons/fi';
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
@@ -125,6 +127,7 @@ const CollapsibleNavSection = ({ section, userRole }: { section: NavSection; use
 export default function Sidebar() {
   const { user } = useAuth();
   const { setActiveView } = useDashboard(); // Obtener la función para cambiar la vista
+  const pathname = usePathname();
   const [navSections, setNavSections] = useState<NavSection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -207,6 +210,20 @@ export default function Sidebar() {
           <CollapsibleNavSection key={section.title} section={section} userRole={user.role} />
         ))}
       </nav>
+
+      <div className="p-4 border-t border-gray-200 mt-auto">
+        <Link
+          href="/dashboard/ai-config"
+          className={`w-full flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors
+            ${pathname === '/dashboard/ai-config'
+              ? 'bg-blue-100 text-blue-700'
+              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+        >
+          <FiSettings className="mr-3 h-5 w-5 flex-shrink-0" />
+          <span>Configuración de IA</span>
+        </Link>
+      </div>
     </aside>
   );
 }

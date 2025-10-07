@@ -9,6 +9,7 @@ from .models import (
     HomePageComponent, PaginaInstitucional, ImagenPaginaInstitucional, ContenidoMunicipio, HechoHistorico,
     Resena, Sugerencia, AuditLog, RutaTuristica, ImagenRutaTuristica, Notificacion
 )
+from ai_models.models import UserLLMConfig
 from django.utils.html import format_html
 
 # -- CONFIGURACIÓN GENERAL DEL SITIO --
@@ -28,6 +29,10 @@ class SiteConfigurationAdmin(admin.ModelAdmin):
         }),
         ('Claves de API', {
             'fields': ('google_maps_api_key',)
+        }),
+        ('Configuración del Agente IA (Router LLM)', {
+            'classes': ('collapse',),
+            'fields': ('llm_routing_token_threshold',)
         }),
     )
 
@@ -90,6 +95,32 @@ class CustomUserAdmin(UserAdmin):
     )
     list_display = ["username", "email", "first_name", "last_name", "role", "is_staff"]
     list_filter = ["role", "is_staff", "is_superuser", "is_active", "groups"]
+
+@admin.register(UserLLMConfig)
+class UserLLMConfigAdmin(admin.ModelAdmin):
+    list_display = ('user', 'provider', 'updated_at')
+    list_filter = ('provider',)
+    search_fields = ('user__username',)
+    readonly_fields = ('api_key_masked', 'created_at', 'updated_at')
+    fields = ('user', 'provider', 'api_key',)
+
+    def api_key_masked(self, obj):
+        if obj.api_key:
+            return f"{obj.api_key[:5]}...{obj.api_key[-4:]}"
+        return "No configurada"
+    api_key_masked.short_description = "Clave API (Enmascarada)"
+
+    def get_fields(self, request, obj=None):
+        # Muestra el campo enmascarado solo al editar, no al crear
+        if obj:
+            return ('user', 'provider', 'api_key', 'api_key_masked')
+        return ('user', 'provider', 'api_key')
+
+    def get_readonly_fields(self, request, obj=None):
+        # Hace que el campo de usuario sea de solo lectura al editar
+        if obj:
+            return self.readonly_fields + ('user', 'api_key_masked')
+        return self.readonly_fields
 
 # -- DIRECTORIOS: PRESTADORES Y ARTESANOS --
 
