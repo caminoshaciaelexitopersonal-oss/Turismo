@@ -6,6 +6,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AgentProvider } from "@/contexts/AgentContext";
 import AgentController from "@/components/agent/AgentController";
 import Footer from "@/components/Footer";
+import Header from "@/components/Header";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -32,9 +33,10 @@ export default function RootLayout({
         <AuthProvider>
           <LanguageProvider>
             <AgentProvider>
-              <div className="flex-grow flex flex-col">
+              <Header />
+              <main className="flex-grow flex flex-col">
                 {children}
-              </div>
+              </main>
               <ToastContainer
                 position="bottom-right"
                 autoClose={5000}

@@ -19,29 +19,26 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-
-# La importación de 'TuristaRegisterView' se mueve dentro de los patrones de URL
-# para romper un ciclo de importación que ocurre durante el arranque del servidor.
+from api.views import (
+    TuristaRegisterView,
+    ArtesanoRegisterView,
+    AdministradorRegisterView,
+    FuncionarioDirectivoRegisterView,
+    FuncionarioProfesionalRegisterView
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     # Rutas de autenticación
     path("api/auth/", include("dj_rest_auth.urls")),
-    # Registro para Prestadores (el default)
+    # Registro para Prestadores (el default de dj-rest-auth)
     path("api/auth/registration/", include("dj_rest_auth.registration.urls")),
-    # Registro para Turistas (endpoint específico)
-    path(
-        "api/auth/registration/turista/",
-        # Importación perezosa (lazy import) de la vista
-        lambda request, *args, **kwargs: __import__('api.views', fromlist=['TuristaRegisterView']).TuristaRegisterView.as_view()(request, *args, **kwargs),
-        name='turista-register'
-    ),
-    # Registro para Artesanos (endpoint específico)
-    path(
-        "api/auth/registration/artesano/",
-        lambda request, *args, **kwargs: __import__('api.views', fromlist=['ArtesanoRegisterView']).ArtesanoRegisterView.as_view()(request, *args, **kwargs),
-        name='artesano-register'
-    ),
+    # Endpoints de registro específicos para cada rol
+    path("api/auth/registration/turista/", TuristaRegisterView.as_view(), name='turista-register'),
+    path("api/auth/registration/artesano/", ArtesanoRegisterView.as_view(), name='artesano-register'),
+    path("api/auth/registration/administrador/", AdministradorRegisterView.as_view(), name='administrador-register'),
+    path("api/auth/registration/funcionario_directivo/", FuncionarioDirectivoRegisterView.as_view(), name='funcionario-directivo-register'),
+    path("api/auth/registration/funcionario_profesional/", FuncionarioProfesionalRegisterView.as_view(), name='funcionario-profesional-register'),
     # Rutas de Administración
     path("api/admin/", include("api.admin_urls")),
     # Rutas de la API de la aplicación

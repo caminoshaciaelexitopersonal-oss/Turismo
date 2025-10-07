@@ -29,6 +29,10 @@ class SiteConfigurationAdmin(admin.ModelAdmin):
         ('Claves de API', {
             'fields': ('google_maps_api_key',)
         }),
+        ('Configuración del Agente IA (Router LLM)', {
+            'classes': ('collapse',),
+            'fields': ('llm_routing_token_threshold',)
+        }),
     )
 
 class ImagenRutaTuristicaInline(admin.TabularInline):

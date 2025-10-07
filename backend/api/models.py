@@ -49,6 +49,7 @@ class CustomUser(AbstractUser):
     class AIProvider(models.TextChoices):
         OPENAI = "OPENAI", _("OpenAI")
         GOOGLE = "GOOGLE", _("Google")
+        GROQ = "GROQ", _("Groq")
 
     base_role = Role.TURISTA
     role = models.CharField(_("Rol"), max_length=50, choices=Role.choices)
@@ -244,6 +245,48 @@ class Artesano(models.Model):
     class Meta:
         verbose_name = "Artesano"
         verbose_name_plural = "Artesanos"
+
+
+class PerfilAdministrador(models.Model):
+    usuario = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="perfil_administrador")
+    cargo = models.CharField(_("Cargo"), max_length=150, blank=True, null=True)
+    dependencia_asignada = models.CharField(_("Dependencia Asignada"), max_length=150, blank=True, null=True)
+    nivel_acceso = models.CharField(_("Nivel de Acceso"), max_length=150, blank=True, null=True)
+
+    def __str__(self):
+        return f"Perfil de Administrador para {self.usuario.username}"
+
+    class Meta:
+        verbose_name = "Perfil de Administrador"
+        verbose_name_plural = "Perfiles de Administradores"
+
+
+class PerfilFuncionarioDirectivo(models.Model):
+    usuario = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="perfil_funcionario_directivo")
+    dependencia = models.CharField(_("Dependencia"), max_length=150, blank=True, null=True)
+    nivel_direccion = models.CharField(_("Nivel de Dirección"), max_length=150, blank=True, null=True)
+    area_funcional = models.CharField(_("Área Funcional"), max_length=150, blank=True, null=True)
+
+    def __str__(self):
+        return f"Perfil de Funcionario Directivo para {self.usuario.username}"
+
+    class Meta:
+        verbose_name = "Perfil de Funcionario Directivo"
+        verbose_name_plural = "Perfiles de Funcionarios Directivos"
+
+
+class PerfilFuncionarioProfesional(models.Model):
+    usuario = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="perfil_funcionario_profesional")
+    dependencia = models.CharField(_("Dependencia"), max_length=150, blank=True, null=True)
+    profesion = models.CharField(_("Profesión"), max_length=150, blank=True, null=True)
+    area_asignada = models.CharField(_("Área Asignada"), max_length=150, blank=True, null=True)
+
+    def __str__(self):
+        return f"Perfil de Funcionario Profesional para {self.usuario.username}"
+
+    class Meta:
+        verbose_name = "Perfil de Funcionario Profesional"
+        verbose_name_plural = "Perfiles de Funcionarios Profesionales"
 
 
 class ImagenArtesano(models.Model):
@@ -604,6 +647,14 @@ class SiteConfiguration(models.Model):
     seccion_atractivos_activa = models.BooleanField(_("Sección de Atractivos Turísticos Activa"), default=True, help_text="Marcar para mostrar la sección de atractivos turísticos.")
     seccion_prestadores_activa = models.BooleanField(_("Sección de Prestadores de Servicios Activa"), default=True, help_text="Marcar para mostrar el directorio de prestadores de servicios.")
     google_maps_api_key = EncryptedTextField(_("Google Maps API Key"), blank=True, null=True, help_text="Clave de API de Google Maps para todo el sitio.")
+
+    # --- Configuración del Router LLM ---
+    llm_routing_token_threshold = models.PositiveIntegerField(
+        _("Umbral de Tokens para Router LLM"),
+        default=1500,
+        help_text="Número de tokens en el historial de conversación para escalar al LLM avanzado (ej: Groq)."
+    )
+
     def __str__(self):
         return "Configuración General del Sitio"
     def save(self, *args, **kwargs):

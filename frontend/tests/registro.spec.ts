@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './mocks';
 
 // --- Helper para generar datos únicos ---
 const generateUniqueEmail = () => {
