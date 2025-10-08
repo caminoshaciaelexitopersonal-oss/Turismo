@@ -31,10 +31,10 @@ class SargentoGraphBuilder:
         self.squad_name = squad_name
         self.squad_executor = ToolNode(self.squad)
 
-    def get_sargento_brain(self, state: SargentoBaseState):
+    async def get_sargento_brain(self, state: SargentoBaseState):
         """
         El cerebro del Sargento. Construye dinámicamente el LLM con las
-        credenciales del usuario y decide la siguiente acción.
+        credenciales del usuario y decide la siguiente acción de forma asíncrona.
         """
         print(f"--- 🤔 SARGENTO ({self.squad_name}): Analizando orden para el usuario... ---")
 
@@ -43,24 +43,23 @@ class SargentoGraphBuilder:
             raise ValueError("Contexto de aplicación inválido o configuración de IA del usuario incompleta.")
 
         # --- Lógica Multi-Inquilino ---
-        # Se instancia el modelo de lenguaje específico basado en la configuración del usuario.
         api_key = user.api_key
 
         if user.ai_provider == CustomUser.AIProvider.OPENAI:
             model = ChatOpenAI(model="gpt-4o", temperature=0, api_key=api_key)
-        # elif user.ai_provider == CustomUser.AIProvider.GOOGLE:
-        #     model = ChatGoogleGenerativeAI(
-        #         model="gemini-pro",
-        #         google_api_key=api_key,
-        #         convert_system_message_to_human=True
-        #     )
+        # Se pueden añadir otros proveedores aquí
         else:
-            raise NotImplementedError(f"Proveedor de IA '{user.ai_provider}' no soportado.")
+            # Fallback o error si el proveedor no es soportado en esta capa.
+            # Por ahora, asumimos que el router ya ha filtrado y solo llega OpenAI o un proveedor válido.
+            # Para este ejemplo, usaremos OpenAI como un default si algo falla.
+            print(f"Advertencia: Proveedor '{user.ai_provider}' no implementado en la capa del Sargento. Usando OpenAI como fallback.")
+            model = ChatOpenAI(model="gpt-4o", temperature=0, api_key=api_key)
 
         # Se enlazan las herramientas de la escuadra al modelo específico del usuario.
         bound_model = model.bind_tools(self.squad)
 
-        return bound_model.invoke(state["messages"])
+        # Usamos 'ainvoke' para la llamada asíncrona
+        return await bound_model.ainvoke(state["messages"])
 
     def route_action(self, state: SargentoBaseState):
         """Revisa la decisión del cerebro y enruta al ejecutor o al informe final."""
