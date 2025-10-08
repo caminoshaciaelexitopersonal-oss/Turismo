@@ -1038,6 +1038,7 @@ class UserLLMConfig(models.Model):
         SYSTEM_DEFAULT = 'SYSTEM_DEFAULT', _('Usar configuración del sistema')
         GROQ = 'GROQ', _('Groq personalizado')
         PHI3_LOCAL = 'PHI3_LOCAL', _('Modelo local Phi-3 Mini')
+        PHI4_LOCAL = 'PHI4_LOCAL', _('Modelo local Phi-4')
 
     user = models.OneToOneField(
         'api.CustomUser', # Usar string para evitar importación circular

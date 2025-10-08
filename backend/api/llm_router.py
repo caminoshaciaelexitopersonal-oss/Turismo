@@ -9,12 +9,14 @@ from asgiref.sync import sync_to_async
 # --- Importaciones de Django (se inicializan de forma segura) ---
 try:
     from api.models import SiteConfiguration
-    from api.phi3_service import invoke_phi3_mini
+    # Importamos el nuevo servicio local generalizado
+    from api.local_llm_service import invoke_local_llm
     DJANGO_AVAILABLE = True
 except (ImportError, ModuleNotFoundError):
     DJANGO_AVAILABLE = False
-    def invoke_phi3_mini(prompt: str) -> str:
-        return "Error: Django no está disponible. No se puede invocar a Phi-3."
+    # Mock para que el archivo no falle al importarse
+    async def invoke_local_llm(prompt: str, model_name: str) -> str:
+        return f"Error: Django no está disponible. No se puede invocar a {model_name}."
 
 load_dotenv()
 
@@ -22,6 +24,11 @@ load_dotenv()
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL_NAME = "llama3-8b-8192"
 DEEP_REASONING_KEYWORDS = ["analiza", "resume", "explica", "corrige", "evalúa", "genera un reporte", "crea un plan"]
+# Mapeo de proveedores locales a nombres de modelos de Ollama
+LOCAL_MODEL_MAP = {
+    "PHI3_LOCAL": "phi3:mini",
+    "PHI4_LOCAL": "phi-4"  # Asumiendo que este es el nombre en Ollama
+}
 
 def count_tokens(text: str) -> int:
     try:
@@ -58,15 +65,18 @@ async def route_llm_request(prompt: str, conversation_history: List[Dict[str, st
     if not DJANGO_AVAILABLE:
         return "Error: El entorno de Django no está configurado."
 
+    # 1. Verificar si el usuario tiene una configuración personalizada y activa
     if user and hasattr(user, 'llm_config'):
         config = user.llm_config
         if config.provider == 'GROQ' and config.api_key:
             print(f"🔑 [LLM Router] Usando Groq personalizado del usuario {user.username}.")
             return await invoke_groq_api(prompt, config.api_key, conversation_history)
-        elif config.provider == 'PHI3_LOCAL':
-            print(f"⚙️ [LLM Router] Usando modelo local Phi-3 Mini (configuración de usuario) para {user.username}.")
-            return await invoke_phi3_mini(prompt)
+        elif config.provider in LOCAL_MODEL_MAP:
+            model_name = LOCAL_MODEL_MAP[config.provider]
+            print(f"⚙️ [LLM Router] Usando modelo local {model_name} (configuración de usuario) para {user.username}.")
+            return await invoke_local_llm(prompt, model_name=model_name)
 
+    # 2. Si no hay config personalizada, usar el router híbrido del sistema
     print("ℹ️ [LLM Router] Usando router híbrido del sistema.")
 
     try:
@@ -90,35 +100,7 @@ async def route_llm_request(prompt: str, conversation_history: List[Dict[str, st
             return await invoke_groq_api(prompt, groq_api_key_global, conversation_history)
         else:
             print(f"[LLM Router] Tarea compleja/larga ({total_tokens} tokens) pero sin Groq global. Fallback a Phi-3 local.")
-            return await invoke_phi3_mini(prompt)
+            return await invoke_local_llm(prompt, model_name=LOCAL_MODEL_MAP["PHI3_LOCAL"])
     else:
         print(f"[LLM Router] Tarea simple ({total_tokens} tokens). Usando modelo local: Phi-3 Mini.")
-        return await invoke_phi3_mini(prompt)
-
-# --- Bloque de prueba para ejecución directa ---
-if __name__ == '__main__':
-    # Este bloque solo funcionará si se ejecuta en un entorno donde Django está configurado.
-    # Para ejecutarlo: python -m backend.ai_models.llm_router
-    if DJANGO_AVAILABLE:
-        print("--- Probando el Router LLM Avanzado ---")
-
-        mock_user_groq_key = os.getenv("GROQ_API_KEY_TEST", "gsk_...")
-        mock_user_provider = "GROQ"
-        mock_history_short = [{"role": "user", "content": "Hola"}, {"role": "assistant", "content": "Hola, ¿en qué puedo ayudarte?"}]
-        mock_history_long = [{"role": "user", "content": " ".join(["palabra"] * 700)}, {"role": "assistant", "content": " ".join(["respuesta"] * 700)}]
-
-        # 1. Tarea simple, historial corto -> Phi-3
-        print("\n--- Test 1: Tarea simple, historial corto ---")
-        route_llm_request("¿Cuál es la capital de Colombia?", mock_history_short, mock_user_groq_key, mock_user_provider)
-
-        # 2. Tarea simple, historial largo -> Groq
-        print("\n--- Test 2: Tarea simple, historial largo ---")
-        route_llm_request("¿Cuál es la capital de Colombia?", mock_history_long, mock_user_groq_key, mock_user_provider)
-
-        # 3. Tarea compleja, historial corto -> Groq
-        print("\n--- Test 3: Tarea compleja, historial corto ---")
-        route_llm_request("Analiza las ventajas del turismo sostenible.", mock_history_short, mock_user_groq_key, mock_user_provider)
-
-        print("\n--- Pruebas del Router LLM Avanzado completadas ---")
-    else:
-        print("No se puede ejecutar el bloque de prueba porque el entorno de Django no está disponible.")
+        return await invoke_local_llm(prompt, model_name=LOCAL_MODEL_MAP["PHI3_LOCAL"])
