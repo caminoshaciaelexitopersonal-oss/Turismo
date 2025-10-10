@@ -77,22 +77,6 @@ class CustomUser(AbstractUser):
         help_text=_("País de origen, si el turista es extranjero.")
     )
 
-    # --- Configuración del Asistente de IA Personal ---
-    ai_provider = models.CharField(
-        _("Proveedor de IA"),
-        max_length=20,
-        choices=AIProvider.choices,
-        blank=True,
-        null=True,
-        help_text=_("El proveedor de IA que el usuario prefiere para su asistente personal.")
-    )
-    api_key = EncryptedTextField(
-        _("Clave de API Personal"),
-        blank=True,
-        null=True,
-        help_text=_("La clave de API para el proveedor de IA seleccionado. Se almacena de forma segura.")
-    )
-
     def save(self, *args, **kwargs):
         if not self.pk:
             if self.is_superuser:
@@ -100,6 +84,45 @@ class CustomUser(AbstractUser):
             elif not self.role:
                 self.role = self.base_role
         super().save(*args, **kwargs)
+
+class UserLLMConfig(models.Model):
+    """
+    Almacena la configuración de LLM personalizada para un usuario.
+    """
+    class Provider(models.TextChoices):
+        SYSTEM_DEFAULT = "SYSTEM_DEFAULT", _("Usar Configuración del Sistema")
+        GROQ = "GROQ", _("Groq Personalizado")
+        PHI3_LOCAL = "PHI3_LOCAL", _("Modelo Local Phi-3 Mini")
+        PHI4_LOCAL = "PHI4_LOCAL", _("Modelo Local Phi-4")
+
+    user = models.OneToOneField(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="llm_config",
+        verbose_name=_("Usuario")
+    )
+    provider = models.CharField(
+        _("Proveedor"),
+        max_length=50,
+        choices=Provider.choices,
+        default=Provider.SYSTEM_DEFAULT,
+        help_text=_("El proveedor de LLM que el usuario prefiere usar.")
+    )
+    api_key = EncryptedTextField(
+        _("Clave de API Personalizada"),
+        blank=True,
+        null=True,
+        help_text=_("La clave de API para el proveedor seleccionado (ej. Groq). Se almacena de forma segura.")
+    )
+    created_at = models.DateTimeField(_("Fecha de Creación"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Última Actualización"), auto_now=True)
+
+    def __str__(self):
+        return f"Configuración LLM para {self.user.username}"
+
+    class Meta:
+        verbose_name = "Configuración LLM de Usuario"
+        verbose_name_plural = "Configuraciones LLM de Usuarios"
 
 
 class CategoriaPrestador(models.Model):

@@ -722,21 +722,6 @@ class AgentCommandSerializer(serializers.Serializer):
     )
 
 
-class LLMKeysSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomUser
-        fields = ['openai_api_key', 'google_api_key']
-        extra_kwargs = {
-            'openai_api_key': {'write_only': False, 'required': False, 'allow_blank': True},
-            'google_api_key': {'write_only': False, 'required': False, 'allow_blank': True},
-        }
-    def to_representation(self, instance):
-        ret = super().to_representation(instance)
-        ret['openai_api_key'] = "Configurada" if instance.openai_api_key else "No configurada"
-        ret['google_api_key'] = "Configurada" if instance.google_api_key else "No configurada"
-        return ret
-
-
 class AuditLogSerializer(serializers.ModelSerializer):
     user_username = serializers.CharField(source='user.username', read_only=True)
     action_display = serializers.CharField(source='get_action_display', read_only=True)
@@ -1000,25 +985,52 @@ class NotificacionSerializer(serializers.ModelSerializer):
 
 # --- Serializador para la Configuración de IA del Usuario ---
 
-class AIConfigSerializer(serializers.ModelSerializer):
+class UserLLMConfigSerializer(serializers.ModelSerializer):
     """
-    Serializador para que un usuario gestione su configuración personal de IA.
-    La clave de API es de solo escritura por seguridad.
+    Serializer para que los usuarios gestionen su propia configuración de LLM.
+    La clave API se enmascara para la lectura y es de solo escritura.
     """
+    api_key = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        style={'input_type': 'password'},
+        help_text="Proporcione su clave de API. No se mostrará después de guardarla."
+    )
+    provider_display = serializers.CharField(source='get_provider_display', read_only=True)
+    api_key_saved = serializers.SerializerMethodField()
+
     class Meta:
-        model = CustomUser
-        fields = ['ai_provider', 'api_key']
-        extra_kwargs = {
-            'api_key': {'write_only': True, 'required': False, 'allow_blank': True, 'style': {'input_type': 'password'}}
-        }
+        model = UserLLMConfig
+        fields = [
+            'provider',
+            'provider_display',
+            'api_key',
+            'api_key_saved',
+            'updated_at'
+        ]
+        read_only_fields = ['updated_at']
+
+    def get_api_key_saved(self, instance):
+        """Devuelve true si la clave API tiene un valor guardado."""
+        return bool(instance.api_key and instance.api_key.value)
+
+    def to_representation(self, instance):
+        """Añade las opciones de proveedor para facilitar el renderizado en el frontend."""
+        representation = super().to_representation(instance)
+        representation['provider_options'] = [
+            {'value': choice[0], 'label': choice[1]}
+            for choice in UserLLMConfig.Provider.choices
+        ]
+        return representation
 
     def update(self, instance, validated_data):
-        # La lógica de la vista asegura que el usuario solo puede actualizar su propia instancia.
-        instance.ai_provider = validated_data.get('ai_provider', instance.ai_provider)
+        """
+        Si la api_key no se envía en la petición o está vacía,
+        se mantiene el valor existente en la base de datos.
+        """
+        # Si la clave no está en los datos, o es una cadena vacía, no la actualizamos.
+        if 'api_key' not in validated_data or not validated_data.get('api_key'):
+            validated_data.pop('api_key', None)
 
-        # Solo actualiza la clave de API si se proporciona una nueva.
-        if 'api_key' in validated_data and validated_data['api_key']:
-            instance.api_key = validated_data['api_key']
-
-        instance.save(update_fields=['ai_provider', 'api_key'])
-        return instance
+        return super().update(instance, validated_data)

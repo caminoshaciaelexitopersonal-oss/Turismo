@@ -51,7 +51,7 @@ urlpatterns = [
     path('profile/prestador/', views.PrestadorProfileView.as_view(), name='prestador-profile'),
     path('profile/artesano/', views.ArtesanoProfileView.as_view(), name='artesano-profile'),
     path('profile/feedback/', views.FeedbackProveedorView.as_view(), name='proveedor-feedback'),
-    path('profile/config-ia/', views.AIConfigView.as_view(), name='ai-config'),
+    path('config/my-llm/', views.UserLLMConfigView.as_view(), name='user-llm-config'),
 
     # --- Rutas para galerías y documentos ---
     path('galeria/prestador/', views.ImagenGaleriaView.as_view(), name='prestador-galeria-list-create'),

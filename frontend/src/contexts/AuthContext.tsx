@@ -156,12 +156,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (userData) {
         toast.success(`¡Bienvenido, ${userData.username}!`);
 
-        // La lógica de redirección se basa en la ruta de la página, no en la vista interna.
-        // La vista interna será gestionada por el propio Dashboard.
-        if (userData.role === 'TURISTA') {
-          router.push('/mi-viaje');
-        } else {
-          router.push('/dashboard');
+        // Redirección por rol, como se especifica en los requisitos.
+        switch (userData.role) {
+          case 'TURISTA':
+            router.push('/mi-viaje');
+            break;
+          case 'PRESTADOR':
+            router.push('/dashboard/prestador');
+            break;
+          case 'ARTESANO':
+            router.push('/dashboard/artesano');
+            break;
+          case 'ADMIN':
+            router.push('/dashboard/admin');
+            break;
+          case 'FUNCIONARIO_DIRECTIVO':
+            router.push('/dashboard/directivo');
+            break;
+          case 'FUNCIONARIO_PROFESIONAL':
+            router.push('/dashboard/profesional');
+            break;
+          default:
+            router.push('/dashboard');
         }
       } else {
         throw new Error("No se pudieron obtener los datos del usuario tras el login.");
@@ -176,10 +192,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (identifier: string, password: string) => {
     try {
-      const isEmail = identifier.includes('@');
+      // El backend espera 'username' (que puede ser email) y 'password'.
       const payload = {
+        username: identifier,
         password,
-        ...(isEmail ? { email: identifier } : { username: identifier }),
       };
       const response = await api.post('/auth/login/', payload);
       if (response.data?.key) {
@@ -256,18 +272,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const register = async (data: RegisterData) => {
-    // Determinar el endpoint correcto. El default es para PRESTADOR.
-    let endpoint = '/auth/registration/';
-    if (data.role === 'TURISTA') {
-      endpoint = '/auth/registration/turista/';
-    } else if (data.role === 'ARTESANO') {
-      endpoint = '/auth/registration/artesano/';
-    } else if (data.role === 'ADMINISTRADOR') {
-      endpoint = '/auth/registration/administrador/';
-    } else if (data.role === 'FUNCIONARIO_DIRECTIVO') {
-      endpoint = '/auth/registration/funcionario_directivo/';
-    } else if (data.role === 'FUNCIONARIO_PROFESIONAL') {
-      endpoint = '/auth/registration/funcionario_profesional/';
+    // Determinar el endpoint correcto usando una estructura switch para mayor robustez.
+    let endpoint = '';
+    switch (data.role) {
+      case 'TURISTA':
+        endpoint = '/auth/registration/turista/';
+        break;
+      case 'PRESTADOR':
+        endpoint = '/auth/registration/prestador/';
+        break;
+      case 'ARTESANO':
+        endpoint = '/auth/registration/artesano/';
+        break;
+      case 'ADMINISTRADOR':
+        endpoint = '/auth/registration/administrador/';
+        break;
+      case 'FUNCIONARIO_DIRECTIVO':
+        endpoint = '/auth/registration/funcionario_directivo/';
+        break;
+      case 'FUNCIONARIO_PROFESIONAL':
+        endpoint = '/auth/registration/funcionario_profesional/';
+        break;
+      default:
+        // Lanzar un error si el rol no es válido para evitar enviar a un endpoint vacío.
+        toast.error(`Error: Rol de registro no válido: ${data.role}`);
+        throw new Error(`Rol de registro no válido: ${data.role}`);
     }
 
     // Construir el payload base con campos comunes

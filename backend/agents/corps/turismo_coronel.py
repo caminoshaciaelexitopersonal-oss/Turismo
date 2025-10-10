@@ -59,8 +59,7 @@ async def create_tactical_plan(state: TurismoColonelState) -> TurismoColonelStat
 
     # Extraer el contexto del usuario para el enrutador LLM
     user_context = state.get("app_context", {})
-    user_api_key = user_context.get("api_key")
-    user_provider = user_context.get("ai_provider")
+    user = user_context.get("user")  # Se espera que el objeto de usuario esté aquí
     conversation_history = state.get("conversation_history", [])
 
     # El prompt ahora es una guía clara para el LLM sobre sus capacidades
@@ -83,7 +82,8 @@ Debes devolver SIEMPRE una respuesta en formato JSON válido, siguiendo la estru
 
     # Doctrina especial para usuarios no registrados (invitados)
     guest_protocol = ""
-    if user_context.get("is_guest", False):
+    is_guest = not user or not user.is_authenticated
+    if is_guest:
         guest_protocol = """
 
 **PROTOCOLO PARA VISITANTES (NO REGISTRADOS):**
@@ -102,7 +102,7 @@ Analiza la siguiente orden y genera el plan táctico en formato JSON. Sé concis
 """
     try:
         # --- INVOCACIÓN DEL ROUTER HÍBRIDO ---
-        llm_response_str = route_llm_request(prompt, conversation_history, user_api_key, user_provider)
+        llm_response_str = await route_llm_request(prompt, conversation_history, user)
 
         # Parsear la respuesta JSON del LLM
         llm_response_json = json.loads(llm_response_str)
