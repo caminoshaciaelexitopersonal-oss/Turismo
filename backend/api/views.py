@@ -301,28 +301,21 @@ class MenuItemViewSet(viewsets.ReadOnlyModelViewSet):
         return MenuItem.objects.filter(parent__isnull=True).order_by('orden')
 
     def list(self, request, *args, **kwargs):
-        # Obtenemos todos los items del menú en una sola consulta para eficiencia.
         all_items = MenuItem.objects.all().order_by('orden')
-
-        # Creamos un diccionario para un acceso rápido a cada ítem por su ID.
         items_map = {item.id: item for item in all_items}
 
-        # Inicializamos el atributo 'children' en cada ítem.
         for item in all_items:
-            item.children = []
+            # Usamos un atributo que no sea de modelo para evitar conflictos con el ORM
+            item.children_data = []
 
-        # Construimos la estructura anidada.
         root_items = []
         for item in all_items:
             if item.parent_id and item.parent_id in items_map:
                 parent = items_map[item.parent_id]
-                parent.children.append(item)
+                parent.children_data.append(item)
             else:
-                # Si no tiene padre, es un elemento raíz.
                 root_items.append(item)
 
-        # Serializamos solo los elementos raíz. El serializador se encargará
-        # de renderizar los 'children' que ya hemos construido.
         serializer = self.get_serializer(root_items, many=True)
         return Response(serializer.data)
 

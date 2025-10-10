@@ -768,12 +768,17 @@ class SiteConfigurationSerializer(serializers.ModelSerializer):
 
 
 class MenuItemSerializer(serializers.ModelSerializer):
-    # El campo 'children' ahora se poblará directamente desde la vista.
-    # Usamos una instancia del propio serializador para renderizar los hijos.
-    children = serializers.ListField(child=serializers.DictField(), read_only=True, source='children_data')
+    children = serializers.SerializerMethodField()
 
     class Meta:
         model = MenuItem
+        fields = ['id', 'nombre', 'url', 'parent', 'orden', 'children']
+
+    def get_children(self, obj):
+        # Usamos el atributo 'children_data' que hemos adjuntado en la vista
+        if hasattr(obj, 'children_data'):
+            return MenuItemSerializer(obj.children_data, many=True).data
+        return []
         fields = ['id', 'nombre', 'url', 'parent', 'orden', 'children']
 
     def to_representation(self, instance):
