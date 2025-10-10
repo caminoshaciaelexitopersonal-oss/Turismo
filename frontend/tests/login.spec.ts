@@ -1,4 +1,4 @@
-import { test, expect } from './mocks';
+import { test, expect } from '@playwright/test';
 
 // --- Helpers ---
 const generateUniqueData = () => {

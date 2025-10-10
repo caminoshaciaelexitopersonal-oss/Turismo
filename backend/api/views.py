@@ -100,7 +100,7 @@ from .serializers import (
     ContenidoMunicipioSerializer,
     AgentCommandSerializer,
     AgentTaskSerializer,
-    LLMKeysSerializer,
+    UserLLMConfigSerializer,
     SiteConfigurationSerializer,
     MenuItemSerializer,
     AdminUserSerializer,
@@ -126,7 +126,6 @@ from .serializers import (
     VerificacionDetailSerializer,
     IniciarVerificacionSerializer,
     GuardarVerificacionSerializer,
-    AIConfigSerializer,
     CapacitacionDetailSerializer,
     RegistrarAsistenciaSerializer
 )
@@ -292,10 +291,40 @@ class HechoHistoricoViewSet(viewsets.ModelViewSet):
     serializer_class = HechoHistoricoSerializer
     permission_classes = [AllowAny]
 
-class MenuItemViewSet(viewsets.ModelViewSet):
-    queryset = MenuItem.objects.all()
+class MenuItemViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = MenuItemSerializer
     permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        # Devuelve solo los elementos raíz (los que no tienen padre)
+        # para la consulta principal del ViewSet.
+        return MenuItem.objects.filter(parent__isnull=True).order_by('orden')
+
+    def list(self, request, *args, **kwargs):
+        # Obtenemos todos los items del menú en una sola consulta para eficiencia.
+        all_items = MenuItem.objects.all().order_by('orden')
+
+        # Creamos un diccionario para un acceso rápido a cada ítem por su ID.
+        items_map = {item.id: item for item in all_items}
+
+        # Inicializamos el atributo 'children' en cada ítem.
+        for item in all_items:
+            item.children = []
+
+        # Construimos la estructura anidada.
+        root_items = []
+        for item in all_items:
+            if item.parent_id and item.parent_id in items_map:
+                parent = items_map[item.parent_id]
+                parent.children.append(item)
+            else:
+                # Si no tiene padre, es un elemento raíz.
+                root_items.append(item)
+
+        # Serializamos solo los elementos raíz. El serializador se encargará
+        # de renderizar los 'children' que ya hemos construido.
+        serializer = self.get_serializer(root_items, many=True)
+        return Response(serializer.data)
 
 class ContenidoMunicipioViewSet(viewsets.ModelViewSet):
     queryset = ContenidoMunicipio.objects.all()
