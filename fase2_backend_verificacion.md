@@ -29,13 +29,9 @@ El objetivo de esta subfase es verificar de manera aislada la estabilidad, confi
 -   **Base de Datos Configurada:** La conexión a la base de datos funciona y el esquema se ha configurado exitosamente a través de las migraciones.
 -   **Advertencias Menores:** Persisten advertencias sobre la configuración de `dj-rest-auth` y `staticfiles`, pero no son críticas para el funcionamiento del backend en esta fase de verificación.
 
-## Conclusión de la Fase 2.1
-
-La verificación del backend ha sido **exitosa**. El sistema base de Django está operativo y listo. Con esto se da por finalizada la Fase 2.1.
-
 ---
 
-## Análisis de endpoint /api/config/menu-items/
+## Análisis de endpoint `/api/config/menu-items/`
 
 ### Estado de la base de datos
 - **Problema:** Se confirmó que el endpoint devolvía una lista vacía `[]`.
@@ -60,3 +56,11 @@ La verificación del backend ha sido **exitosa**. El sistema base de Django est�
 - **Diagnóstico:** El problema del menú vacío se debía a que el comando de inicialización `setup_menu` no se había ejecutado. El error 500 posterior fue causado por una implementación incorrecta en el serializador para manejar datos recursivos.
 - **Solución:** Se ejecutó el comando de inicialización y se refactorizó el `MenuItemSerializer` para manejar correctamente la serialización anidada.
 - **Recomendación:** Asegurar que los scripts de inicialización de datos (`seeds`) se incluyan como parte del proceso de despliegue o configuración inicial del entorno para evitar este tipo de problemas.
+
+---
+
+## Conclusión de la Fase 2.1
+
+La verificación del backend ha sido **exitosa**.  
+El sistema base de Django está operativo y, tras la corrección del endpoint `/api/config/menu-items/`, el backend **provee datos funcionales al frontend**.  
+Con esto, se da por finalizada la **Fase 2.1** y se recomienda avanzar a la **Fase 3: Interoperabilidad y Diagnóstico Funcional**.

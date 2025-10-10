@@ -12,25 +12,26 @@ const llmConfig = {
 
 export const handlers = [
   // --- MANEJADOR DE LOGIN MEJORADO ---
+  // Simula la respuesta para diferentes roles basados en el username
   // Devuelve el token y el objeto de usuario en la misma respuesta.
   http.post(`${API_BASE_URL}/auth/login/`, async ({ request }) => {
     const body = await request.json() as any;
     const username = body.username || body.email;
 
     const userProfiles = {
-      'admin': { role: 'ADMIN', pk: 1 },
-      'prestador': { role: 'PRESTADOR', pk: 2 },
-      'artesano': { role: 'ARTESANO', pk: 3 },
-      'turista': { role: 'TURISTA', pk: 4 },
-      'directivo': { role: 'FUNCIONARIO_DIRECTIVO', pk: 5 },
-      'profesional': { role: 'FUNCIONARIO_PROFESIONAL', pk: 6 },
+      admin: { role: 'ADMINISTRADOR', pk: 1, token: 'mock-token-admin' },
+      prestador: { role: 'PRESTADOR', pk: 2, token: 'mock-token-prestador' },
+      artesano: { role: 'ARTESANO', pk: 3, token: 'mock-token-artesano' },
+      turista: { role: 'TURISTA', pk: 4, token: 'mock-token-turista' },
+      directivo: { role: 'FUNCIONARIO_DIRECTIVO', pk: 5, token: 'mock-token-directivo' },
+      profesional: { role: 'FUNCIONARIO_PROFESIONAL', pk: 6, token: 'mock-token-profesional' },
     };
 
     const profile = userProfiles[username];
 
     if (profile) {
       return HttpResponse.json({
-        key: `mock-token-for-${username}`,
+        key: profile.token,
         user: {
           pk: profile.pk,
           username: username,
@@ -48,19 +49,35 @@ export const handlers = [
 
   // --- MANEJADORES DE REGISTRO POR ROL ---
   // Se crea un manejador para cada endpoint de registro específico
-  ...['turista', 'prestador', 'artesano', 'administrador', 'funcionario_directivo', 'funcionario_profesional'].map(role =>
+  ...[
+    'turista',
+    'prestador',
+    'artesano',
+    'administrador',
+    'funcionario_directivo',
+    'funcionario_profesional',
+  ].map((role) =>
     http.post(`${API_BASE_URL}/auth/registration/${role}/`, async ({ request }) => {
-      const body = await request.json() as any;
+      const body = (await request.json()) as any;
 
       if (body.password1 !== body.password2) {
-        return HttpResponse.json({ password2: ['Las contraseñas no coinciden.'] }, { status: 400 });
+        return HttpResponse.json(
+          { password2: ['Las contraseñas no coinciden.'] },
+          { status: 400 }
+        );
       }
       if (users.has(body.email)) {
-          return HttpResponse.json({ email: ['Este correo ya está en uso.'] }, { status: 400 });
+        return HttpResponse.json(
+          { email: ['Este correo ya está en uso.'] },
+          { status: 400 }
+        );
       }
 
       users.set(body.email, { ...body, role: role.toUpperCase() });
-      return HttpResponse.json({ detail: `Registro de ${role} exitoso.` }, { status: 201 });
+      return HttpResponse.json(
+        { detail: `Registro de ${role} exitoso.` },
+        { status: 201 }
+      );
     })
   ),
 
@@ -88,7 +105,7 @@ export const handlers = [
   }),
 
   http.post(`${API_BASE_URL}/config/my-llm/`, async ({ request }) => {
-    const newConfig = await request.json() as any;
+    const newConfig = (await request.json()) as any;
     llmConfig.provider = newConfig.provider || llmConfig.provider;
     llmConfig.apiKey = newConfig.apiKey || llmConfig.apiKey;
     return HttpResponse.json(llmConfig, { status: 200 });
@@ -99,26 +116,26 @@ export const handlers = [
   http.get(`${API_BASE_URL}/auth/user/`, ({ request }) => {
     const authHeader = request.headers.get('Authorization');
     if (authHeader && authHeader.startsWith('Token mock-token-')) {
-        const token = authHeader.substring('Token '.length);
-        const roleKey = token.replace('mock-token-', '');
+      const token = authHeader.substring('Token '.length);
+      const roleKey = token.replace('mock-token-', '');
 
-        const roleMap = {
-            'admin': 'ADMINISTRADOR',
-            'prestador': 'PRESTADOR',
-            'artesano': 'ARTESANO',
-            'turista': 'TURISTA',
-            'directivo': 'FUNCIONARIO_DIRECTIVO',
-            'profesional': 'FUNCIONARIO_PROFESIONAL'
-        };
+      const roleMap = {
+        admin: 'ADMINISTRADOR',
+        prestador: 'PRESTADOR',
+        artesano: 'ARTESANO',
+        turista: 'TURISTA',
+        directivo: 'FUNCIONARIO_DIRECTIVO',
+        profesional: 'FUNCIONARIO_PROFESIONAL',
+      };
 
-        const userRole = roleMap[roleKey] || 'TURISTA';
+      const userRole = roleMap[roleKey] || 'TURISTA';
 
-        return HttpResponse.json({
-            pk: 1,
-            username: roleKey,
-            email: `${roleKey}@example.com`,
-            role: userRole,
-        });
+      return HttpResponse.json({
+        pk: 1,
+        username: roleKey,
+        email: `${roleKey}@example.com`,
+        role: userRole,
+      });
     }
     return new HttpResponse(null, { status: 401 });
   }),
