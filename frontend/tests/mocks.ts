@@ -1,40 +1,27 @@
 import { test as base } from '@playwright/test';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
+
+// Importa los manejadores que ya hemos definido
 import { handlers } from '../src/mocks/handlers';
 
-// Configura el servidor de msw con los manejadores definidos.
+// Crea el servidor de MSW con los manejadores
 const server = setupServer(...handlers);
 
-// Extiende el 'test' base de Playwright.
+// Sobrescribe el `test` de Playwright para integrar MSW
 export const test = base.extend({
-  // La siguiente función se ejecutará antes de cada test que use nuestro 'test' extendido.
-  auto: [
-    async ({}, use) => {
-      // Inicia el servidor de mock antes de que comience el test.
-      server.listen({ onUnhandledRequest: 'bypass' });
-      console.log('MSW server started.');
+  // Inicia el servidor antes de cada prueba
+  async page({ page }, use) {
+    // Inicia el servidor de MSW antes de que comiencen las pruebas
+    server.listen({ onUnhandledRequest: 'bypass' });
 
-      // 'use()' es el punto donde el test se ejecuta.
-      await use();
+    // Permite que la prueba se ejecute
+    await use(page);
 
-      // Limpia los manejadores después de cada test para asegurar un estado limpio.
-      server.resetHandlers();
-      console.log('MSW handlers reset.');
-    },
-    { auto: true },
-  ],
-
-  // Se asegura de que el servidor se cierre al final de todas las pruebas.
-  // Esto se ejecuta una sola vez para todo el worker.
-  worker: [
-    async ({}, use) => {
-      await use();
-      server.close();
-      console.log('MSW server closed.');
-    },
-    { scope: 'worker', auto: true },
-  ],
+    // Detiene el servidor y limpia después de cada prueba
+    server.resetHandlers();
+    server.close();
+  },
 });
 
 export { expect } from '@playwright/test';
