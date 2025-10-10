@@ -1,0 +1,12 @@
+/home/jules/.pyenv/versions/3.12.11/lib/python3.12/site-packages/dj_rest_auth/registration/serializers.py:228: UserWarning: app_settings.USERNAME_REQUIRED is deprecated, use: app_settings.SIGNUP_FIELDS['username']['required']
+  required=allauth_account_settings.USERNAME_REQUIRED,
+/home/jules/.pyenv/versions/3.12.11/lib/python3.12/site-packages/dj_rest_auth/registration/serializers.py:230: UserWarning: app_settings.EMAIL_REQUIRED is deprecated, use: app_settings.SIGNUP_FIELDS['email']['required']
+  email = serializers.EmailField(required=allauth_account_settings.EMAIL_REQUIRED)
+/home/jules/.pyenv/versions/3.12.11/lib/python3.12/site-packages/dj_rest_auth/registration/serializers.py:288: UserWarning: app_settings.EMAIL_REQUIRED is deprecated, use: app_settings.SIGNUP_FIELDS['email']['required']
+  email = serializers.EmailField(required=allauth_account_settings.EMAIL_REQUIRED)
+System check identified some issues:
+
+WARNINGS:
+?: (staticfiles.W004) The directory '/app/backend/static' in the STATICFILES_DIRS setting does not exist.
+
+System check identified 1 issue (0 silenced).
