@@ -1,8 +1,9 @@
 version: '3.9'
+
 services:
   db:
     image: postgres:15
-    container_name: db_test
+    container_name: db
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
@@ -16,28 +17,24 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: backend_test
-    command: python backend/manage.py runserver 0.0.0.0:8000
+    container_name: backend
+    command: python manage.py runserver 0.0.0.0:8000
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app/backend
+      - ./backend:/app
     depends_on:
       - db
-    environment:
-      - DATABASE_URL=postgres://admin:admin@db:5432/turismo
-      - DJANGO_SECRET_KEY=test-secret-key-for-docker
-      - DJANGO_DEBUG=True
 
   frontend:
     image: node:20
-    container_name: frontend_test
+    container_name: frontend
     working_dir: /app/frontend
-    command: npm install && npm run dev
+    command: npm run dev
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app/frontend
+      - .:/app
     depends_on:
       - backend
 

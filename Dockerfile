@@ -1,24 +1,20 @@
-FROM python:3.12-slim AS backend
+# Usa una imagen base de Python
+FROM python:3.12-slim
 
-# Instala dependencias del sistema necesarias para Playwright
-RUN apt-get update && apt-get install -y \
-    nodejs npm curl wget git libgtk-3-0 libnss3 libxss1 libasound2 \
-    libgbm-dev libxkbcommon-x11-0 libxcomposite1 libxdamage1 libxrandr2 \
-    fonts-liberation libappindicator3-1 libatk-bridge2.0-0 libdrm2 \
-    gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-tools \
-    && apt-get clean
-
+# Establece el directorio de trabajo en /app
 WORKDIR /app
 
-# Copiar backend
-COPY backend/ ./backend/
+# Copia el archivo de requerimientos al contenedor
+COPY ./backend/requirements.txt /app/
 
-WORKDIR /app/backend
-RUN pip install --upgrade pip && pip install -r requirements.txt
+# Instala las dependencias
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Instalar Playwright (con navegadores y dependencias)
-# El comando correcto para instalar dependencias de sistema es --with-deps
-RUN npx playwright install --with-deps
+# Copia el resto del código del backend al contenedor
+COPY ./backend/ /app/
 
-# Comando por defecto para correr migraciones o tests
-CMD ["python", "manage.py", "test"]
+# Expone el puerto 8000 para que Django pueda ser accedido
+EXPOSE 8000
+
+# Comando para correr el servidor de desarrollo de Django
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

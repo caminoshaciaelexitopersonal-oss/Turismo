@@ -1,0 +1,106 @@
+name: System Verification CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  verify-system:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: admin
+          POSTGRES_DB: turismo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Backend Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run Backend Migrations
+        env:
+          SECRET_KEY: "ci-secret-key-for-testing"
+          DB_NAME: turismo
+          DB_USER: admin
+          DB_PASSWORD: admin
+          DB_HOST: localhost
+          DB_PORT: 5432
+        run: python backend/manage.py migrate
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Frontend Dependencies
+        run: npm install --prefix frontend
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps --prefix frontend
+
+      - name: Start Backend Server
+        env:
+          SECRET_KEY: "ci-secret-key-for-testing"
+          DB_NAME: turismo
+          DB_USER: admin
+          DB_PASSWORD: admin
+          DB_HOST: localhost
+          DB_PORT: 5432
+        run: python backend/manage.py runserver &
+
+      - name: Start Frontend Server
+        run: npm run dev --prefix frontend &
+
+      - name: Wait for Servers to be ready
+        run: |
+          echo "Waiting for backend..."
+          while ! nc -z localhost 8000; do
+            sleep 1
+          done
+          echo "Backend is up."
+          echo "Waiting for frontend..."
+          while ! nc -z localhost 3000; do
+            sleep 1
+          done
+          echo "Frontend is up."
+
+      - name: Run Backend Tests
+        env:
+          SECRET_KEY: "ci-secret-key-for-testing"
+          DB_NAME: turismo
+          DB_USER: admin
+          DB_PASSWORD: admin
+          DB_HOST: localhost
+          DB_PORT: 5432
+        run: python backend/manage.py test
+
+      - name: Run Playwright E2E Tests
+        run: npx playwright test --config frontend/playwright.config.ts
+
+      - name: Stop Servers
+        if: always()
+        run: |
+          kill $(lsof -t -i:8000) || true
+          kill $(lsof -t -i:3000) || true
