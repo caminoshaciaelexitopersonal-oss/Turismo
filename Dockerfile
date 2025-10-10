@@ -17,8 +17,7 @@ WORKDIR /app/backend
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Instalar Playwright (con navegadores y dependencias)
-# El comando correcto para instalar dependencias de sistema es --with-deps
-RUN npx playwright install --with-deps
+RUN npm install -g playwright && playwright install --with-deps
 
 # Comando por defecto para correr migraciones o tests
 CMD ["python", "manage.py", "test"]
