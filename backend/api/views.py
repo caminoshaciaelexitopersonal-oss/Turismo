@@ -391,13 +391,18 @@ class FeedbackProveedorView(generics.ListAPIView):
     serializer_class = FeedbackProveedorSerializer
     permission_classes = [IsAuthenticated]
 
-class AIConfigView(generics.RetrieveUpdateAPIView):
-    queryset = CustomUser.objects.all()
-    serializer_class = AIConfigSerializer
+class UserLLMConfigView(generics.RetrieveUpdateAPIView):
+    """
+    Vista para que un usuario vea y actualice su propia configuración de LLM.
+    """
+    serializer_class = UserLLMConfigSerializer
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
-        return self.request.user
+        # get_or_create asegura que cada usuario tenga una configuración de LLM,
+        # creándola con los valores por defecto si no existe.
+        llm_config, created = UserLLMConfig.objects.get_or_create(user=self.request.user)
+        return llm_config
 
 class ImagenGaleriaView(generics.ListCreateAPIView):
     queryset = ImagenGaleria.objects.all()
@@ -513,38 +518,22 @@ class ExportExcelView(views.APIView):
             status=status.HTTP_501_NOT_IMPLEMENTED
         )
 
-class ImagenArtesanoDetailView(views.APIView):
+class ImagenArtesanoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ImagenArtesanoSerializer
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        return Response(
-            {"error": "Esta funcionalidad aún no está implementada."},
-            status=status.HTTP_501_NOT_IMPLEMENTED
-        )
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'artesano'):
+            return ImagenArtesano.objects.filter(artesano=user.artesano)
+        return ImagenArtesano.objects.none()
 
-class ImagenArtesanoDetailView(views.APIView):
+class ImagenGaleriaDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ImagenGaleriaSerializer
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        return Response(
-            {"error": "Esta funcionalidad aún no está implementada."},
-            status=status.HTTP_501_NOT_IMPLEMENTED
-        )
-
-class ImagenGaleriaDetailView(views.APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, *args, **kwargs):
-        return Response(
-            {"error": "Esta funcionalidad aún no está implementada."},
-            status=status.HTTP_501_NOT_IMPLEMENTED
-        )
-
-class ImagenGaleriaDetailView(views.APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, *args, **kwargs):
-        return Response(
-            {"error": "Esta funcionalidad aún no está implementada."},
-            status=status.HTTP_501_NOT_IMPLEMENTED
-        )
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'perfil_prestador'):
+            return ImagenGaleria.objects.filter(prestador=user.perfil_prestador)
+        return ImagenGaleria.objects.none()

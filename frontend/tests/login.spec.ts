@@ -15,16 +15,17 @@ const BASE_URL = 'http://localhost:3000';
 test.describe('Flujo de Inicio de Sesión para Todos los Roles', () => {
 
   // --- Test para Administrador (usa credenciales preexistentes) ---
-  test('debería iniciar sesión como Administrador y ver el dashboard principal', async ({ page }) => {
+  test('debería iniciar sesión como Administrador y ser redirigido al dashboard de admin', async ({ page }) => {
     await page.goto(`${BASE_URL}/login`);
     await page.getByLabel('Correo Electrónico').fill('admin');
     await page.getByLabel('Contraseña').fill('adminpassword');
     await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
 
     await page.waitForURL(`${BASE_URL}/dashboard`, { timeout: 15000 });
-    await expect(page).toHaveURL(`${BASE_URL}/dashboard`);
 
-    const adminHeader = page.locator('h1', { hasText: 'Dashboard Principal' });
+    // La redirección final puede ser a /dashboard o /dashboard/admin, ambas son válidas
+    // Lo importante es que el contenido del dashboard de admin esté visible.
+    const adminHeader = page.locator('h1', { hasText: 'Panel de Administración' });
     await expect(adminHeader).toBeVisible({ timeout: 10000 });
   });
 
@@ -78,9 +79,9 @@ test.describe('Flujo de Inicio de Sesión para Todos los Roles', () => {
     await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
 
     // 3. Verificar redirección y contenido
-    await page.waitForURL(`${BASE_URL}/dashboard`);
-    await expect(page).toHaveURL(`${BASE_URL}/dashboard`);
-    const prestadorHeader = page.locator('h2', { hasText: 'Gestión de Prestadores de Servicios' });
+    await page.waitForURL(`${BASE_URL}/dashboard/prestador`);
+    await expect(page).toHaveURL(`${BASE_URL}/dashboard/prestador`);
+    const prestadorHeader = page.locator('h2', { hasText: 'Perfil del Prestador' });
     await expect(prestadorHeader).toBeVisible({ timeout: 10000 });
   });
 
@@ -107,10 +108,68 @@ test.describe('Flujo de Inicio de Sesión para Todos los Roles', () => {
     await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
 
     // 3. Verificar redirección y contenido
-    await page.waitForURL(`${BASE_URL}/dashboard`);
-    await expect(page).toHaveURL(`${BASE_URL}/dashboard`);
-    const artesanoHeader = page.locator('h3', { hasText: 'Información del Taller/Artesano' });
+    await page.waitForURL(`${BASE_URL}/dashboard/artesano`);
+    await expect(page).toHaveURL(`${BASE_URL}/dashboard/artesano`);
+    const artesanoHeader = page.locator('h2', { hasText: 'Perfil del Artesano' });
     await expect(artesanoHeader).toBeVisible({ timeout: 10000 });
+  });
+
+  // --- Test para Funcionario Directivo (registra y luego inicia sesión) ---
+  test('debería registrar y luego iniciar sesión como Funcionario Directivo', async ({ page }) => {
+    const { email, username, password } = generateUniqueData();
+
+    // 1. Registrar usuario
+    await page.goto(`${BASE_URL}/registro`);
+    await page.getByLabel('Correo Electrónico').fill(email);
+    await page.getByLabel('Nombre de Usuario').fill(username);
+    await page.getByLabel('Contraseña').fill(password);
+    await page.getByLabel('Confirmar Contraseña').fill(password);
+    await page.getByLabel('Quiero registrarme como:').selectOption('FUNCIONARIO_DIRECTIVO');
+    await page.getByLabel('Dependencia').fill('Planeación');
+    await page.getByLabel('Nivel de Dirección').fill('Director de Área');
+    await page.getByLabel('Área Funcional').fill('Proyectos Estratégicos');
+    await page.getByRole('button', { name: 'Crear Cuenta' }).click();
+    await page.waitForURL(`${BASE_URL}/login`);
+
+    // 2. Iniciar sesión
+    await page.getByLabel('Correo Electrónico').fill(email);
+    await page.getByLabel('Contraseña').fill(password);
+    await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
+
+    // 3. Verificar redirección y contenido
+    await page.waitForURL(`${BASE_URL}/dashboard/directivo`);
+    await expect(page).toHaveURL(`${BASE_URL}/dashboard/directivo`);
+    const header = page.locator('h1', { hasText: 'Panel de Funcionario' });
+    await expect(header).toBeVisible({ timeout: 10000 });
+  });
+
+  // --- Test para Funcionario Profesional (registra y luego inicia sesión) ---
+  test('debería registrar y luego iniciar sesión como Funcionario Profesional', async ({ page }) => {
+    const { email, username, password } = generateUniqueData();
+
+    // 1. Registrar usuario
+    await page.goto(`${BASE_URL}/registro`);
+    await page.getByLabel('Correo Electrónico').fill(email);
+    await page.getByLabel('Nombre de Usuario').fill(username);
+    await page.getByLabel('Contraseña').fill(password);
+    await page.getByLabel('Confirmar Contraseña').fill(password);
+    await page.getByLabel('Quiero registrarme como:').selectOption('FUNCIONARIO_PROFESIONAL');
+    await page.getByLabel('Dependencia').fill('Tecnología');
+    await page.getByLabel('Profesión').fill('Ingeniero de Software');
+    await page.getByLabel('Área Asignada').fill('Desarrollo');
+    await page.getByRole('button', { name: 'Crear Cuenta' }).click();
+    await page.waitForURL(`${BASE_URL}/login`);
+
+    // 2. Iniciar sesión
+    await page.getByLabel('Correo Electrónico').fill(email);
+    await page.getByLabel('Contraseña').fill(password);
+    await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
+
+    // 3. Verificar redirección y contenido
+    await page.waitForURL(`${BASE_URL}/dashboard/profesional`);
+    await expect(page).toHaveURL(`${BASE_URL}/dashboard/profesional`);
+    const header = page.locator('h1', { hasText: 'Panel de Funcionario' });
+    await expect(header).toBeVisible({ timeout: 10000 });
   });
 
   // --- Test de Error: Credenciales incorrectas ---

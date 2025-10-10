@@ -25,14 +25,18 @@ interface SiteConfig {
 }
 
 const Header: React.FC = () => {
-  const { user, logout, isLoading } = useAuth();
+  const { user, logout, isLoading: isAuthLoading } = useAuth(); // Renombrar para claridad
   const [navItems, setNavItems] = useState<NavLink[]>([]);
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isHeaderLoading, setIsHeaderLoading] = useState(true); // Estado de carga para el menú
+  const [headerError, setHeaderError] = useState<string | null>(null); // Estado de error
   const pathname = usePathname();
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsHeaderLoading(true);
+      setHeaderError(null);
       try {
         const [menuResponse, configResponse] = await Promise.all([
           api.get('/config/menu-items/'),
@@ -45,6 +49,9 @@ const Header: React.FC = () => {
 
       } catch (error) {
         console.error("Error fetching header data:", error);
+        setHeaderError("No se pudo cargar el menú."); // Mensaje de error para el usuario
+      } finally {
+        setIsHeaderLoading(false);
       }
     };
 
@@ -79,7 +86,7 @@ const Header: React.FC = () => {
               {siteConfig?.logo_url ? (
                 <Image src={siteConfig.logo_url} alt="Logo Institucional" width={60} height={60} className="h-14 w-auto" />
               ) : (
-                <div className="w-14 h-14 bg-gray-200 rounded-full"></div>
+                <div className="w-14 h-14 bg-gray-200 rounded-full animate-pulse"></div>
               )}
             </Link>
             <div className="hidden md:block ml-4">
@@ -93,7 +100,18 @@ const Header: React.FC = () => {
           <div className="flex items-center">
             {/* Navegación para Escritorio */}
             <nav className="hidden lg:flex lg:space-x-4 mr-6">
-              {renderNavLinks(navItems)}
+              {isHeaderLoading ? (
+                // Skeleton loader para los items del menú
+                <>
+                  <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+                  <div className="h-4 bg-gray-200 rounded w-16 animate-pulse"></div>
+                </>
+              ) : headerError ? (
+                <span className="text-sm text-red-500">{headerError}</span>
+              ) : (
+                renderNavLinks(navItems)
+              )}
             </nav>
 
             {/* Acciones de Usuario para Escritorio */}
@@ -101,7 +119,7 @@ const Header: React.FC = () => {
               <button className="p-2 rounded-full hover:bg-gray-100 text-gray-600">
                 <FiBell size={20} />
               </button>
-              {!isLoading && (
+              {!isAuthLoading && (
                 <>
                   {user ? (
                     <>
@@ -146,7 +164,13 @@ const Header: React.FC = () => {
       {isMenuOpen && (
         <div className="lg:hidden absolute top-full left-0 w-full bg-white shadow-lg">
           <nav className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            {renderNavLinks(navItems, true)}
+            {isHeaderLoading ? (
+                <div className="px-3 py-2 text-base text-gray-500">Cargando...</div>
+            ) : headerError ? (
+                <div className="px-3 py-2 text-base text-red-500">{headerError}</div>
+            ) : (
+                renderNavLinks(navItems, true)
+            )}
           </nav>
           <div className="px-4 py-3 border-t border-gray-200">
             <div className="flex items-center mb-3">
@@ -156,7 +180,7 @@ const Header: React.FC = () => {
               <span className="ml-2 text-sm text-gray-700">Notificaciones</span>
             </div>
              <div className="space-y-2">
-                 {!isLoading && (
+                 {!isAuthLoading && (
                   <>
                     {user ? (
                       <>
