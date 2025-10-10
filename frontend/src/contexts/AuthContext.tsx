@@ -141,66 +141,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [fetchUserData]);
 
-  const completeLogin = async (key: string) => {
+  const completeLogin = (key: string, userData: User) => {
     setToken(key);
+    setUser(userData); // Establecer el usuario directamente
     if (typeof window !== 'undefined') {
       localStorage.setItem('authToken', key);
     }
     setMfaRequired(false);
     setLoginCredentials(null);
-    setIsLoading(true);
 
-    try {
-      const userData = await fetchUserData();
+    toast.success(`¡Bienvenido, ${userData.username}!`);
 
-      if (userData) {
-        toast.success(`¡Bienvenido, ${userData.username}!`);
-
-        // Redirección por rol, como se especifica en los requisitos.
-        switch (userData.role) {
-          case 'TURISTA':
-            router.push('/mi-viaje');
-            break;
-          case 'PRESTADOR':
-            router.push('/dashboard/prestador');
-            break;
-          case 'ARTESANO':
-            router.push('/dashboard/artesano');
-            break;
-          case 'ADMIN':
-            router.push('/dashboard/admin');
-            break;
-          case 'FUNCIONARIO_DIRECTIVO':
-            router.push('/dashboard/directivo');
-            break;
-          case 'FUNCIONARIO_PROFESIONAL':
-            router.push('/dashboard/profesional');
-            break;
-          default:
-            router.push('/dashboard');
-        }
-      } else {
-        throw new Error("No se pudieron obtener los datos del usuario tras el login.");
-      }
-    } catch (err) {
-      toast.error("Hubo un problema al iniciar sesión. Por favor, inténtelo de nuevo.");
-      logout();
-    } finally {
-      setIsLoading(false);
+    // Redirección por rol, como se especifica en los requisitos.
+    switch (userData.role) {
+      case 'TURISTA':
+        router.push('/mi-viaje');
+        break;
+      case 'PRESTADOR':
+        router.push('/dashboard');
+        break;
+      case 'ARTESANO':
+        router.push('/dashboard');
+        break;
+      case 'ADMIN':
+        router.push('/dashboard');
+        break;
+      case 'FUNCIONARIO_DIRECTIVO':
+        router.push('/dashboard');
+        break;
+      case 'FUNCIONARIO_PROFESIONAL':
+        router.push('/dashboard');
+        break;
+      default:
+        router.push('/');
     }
   };
 
   const login = async (identifier: string, password: string) => {
     try {
-      // El backend espera 'username' (que puede ser email) y 'password'.
       const payload = {
         username: identifier,
         password,
       };
       const response = await api.post('/auth/login/', payload);
-      if (response.data?.key) {
-        await completeLogin(response.data.key);
+
+      // La respuesta ahora debe contener la clave (token) y el objeto de usuario
+      if (response.data?.key && response.data?.user) {
+        completeLogin(response.data.key, response.data.user);
       } else {
+        // Lógica de MFA (si aplica) o manejo de errores
         setMfaRequired(true);
         setLoginCredentials({ identifier, password });
       }

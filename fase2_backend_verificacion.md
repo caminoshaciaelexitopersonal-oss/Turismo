@@ -63,4 +63,4 @@ El objetivo de esta subfase es verificar de manera aislada la estabilidad, confi
 
 La verificación del backend ha sido **exitosa**.  
 El sistema base de Django está operativo y, tras la corrección del endpoint `/api/config/menu-items/`, el backend **provee datos funcionales al frontend**.  
-Con esto, se da por finalizada la Fase 2.1 y se recomienda avanzar a la **Fase 3: Interoperabilidad y Diagnóstico Funcional**.
+Con esto, se da por finalizada la **Fase 2.1** y se recomienda avanzar a la **Fase 3: Interoperabilidad y Diagnóstico Funcional**.
