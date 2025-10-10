@@ -1,22 +1,19 @@
+print("DEBUG: Entrando en api/signals.py")
+print("DEBUG: Entrando en api/signals.py")
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.contrib.contenttypes.models import ContentType
-from .models import (
-    Resena,
-    Verificacion,
-    AsistenciaCapacitacion,
-    PrestadorServicio,
-    Artesano,
-    ScoringRule,
-    RespuestaItemVerificacion
-)
 
-@receiver(post_save, sender=Resena)
+# Models are now imported inside the functions to prevent app-loading deadlocks.
+
+@receiver(post_save, sender='api.Resena')
 def actualizar_puntuacion_por_resena(sender, instance, created, **kwargs):
     """
     Actualiza la puntuación de un Prestador o Artesano cuando se crea
     o actualiza una reseña aprobada.
     """
+    from .models import PrestadorServicio, Artesano, ScoringRule, Resena
+
     if not instance.aprobada:
         return
 
@@ -46,12 +43,14 @@ def actualizar_puntuacion_por_resena(sender, instance, created, **kwargs):
     content_object.recalcular_puntuacion_total()
 
 
-@receiver(post_save, sender=Verificacion)
+@receiver(post_save, sender='api.Verificacion')
 def actualizar_puntuacion_por_verificacion(sender, instance, created, **kwargs):
     """
     Actualiza la puntuación de un Prestador de Servicio cuando se crea
     o actualiza una verificación.
     """
+    from .models import Verificacion, RespuestaItemVerificacion
+
     prestador = instance.prestador
 
     # Primero, se calcula el puntaje de esta verificación específica
@@ -75,12 +74,14 @@ def actualizar_puntuacion_por_verificacion(sender, instance, created, **kwargs):
     prestador.recalcular_puntuacion_total()
 
 
-@receiver(post_save, sender=AsistenciaCapacitacion)
+@receiver(post_save, sender='api.AsistenciaCapacitacion')
 def actualizar_puntuacion_por_capacitacion(sender, instance, created, **kwargs):
     """
     Actualiza la puntuación de un Prestador o Artesano cuando se registra
     la asistencia a una capacitación.
     """
+    from .models import ScoringRule, AsistenciaCapacitacion
+
     usuario = instance.usuario
 
     if hasattr(usuario, 'perfil_prestador'):
@@ -110,15 +111,15 @@ def actualizar_puntuacion_por_capacitacion(sender, instance, created, **kwargs):
 
 # --- Señales post_delete para mantener la consistencia ---
 
-@receiver(post_delete, sender=AsistenciaCapacitacion)
+@receiver(post_delete, sender='api.AsistenciaCapacitacion')
 def recalcular_puntuacion_al_borrar_asistencia(sender, instance, **kwargs):
     # Llama a la misma lógica de actualización para recalcular con un elemento menos
     actualizar_puntuacion_por_capacitacion(sender, instance, created=False, **kwargs)
 
-@receiver(post_delete, sender=Verificacion)
+@receiver(post_delete, sender='api.Verificacion')
 def recalcular_puntuacion_al_borrar_verificacion(sender, instance, **kwargs):
     actualizar_puntuacion_por_verificacion(sender, instance, created=False, **kwargs)
 
-@receiver(post_delete, sender=Resena)
+@receiver(post_delete, sender='api.Resena')
 def recalcular_puntuacion_al_borrar_resena(sender, instance, **kwargs):
     actualizar_puntuacion_por_resena(sender, instance, created=False, **kwargs)

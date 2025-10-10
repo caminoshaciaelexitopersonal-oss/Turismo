@@ -14,7 +14,8 @@ from .models import (
     AsistenciaCapacitacion,
     PerfilAdministrador,
     PerfilFuncionarioDirectivo,
-    PerfilFuncionarioProfesional
+    PerfilFuncionarioProfesional,
+    UserLLMConfig
 )
 from django.db import transaction
 
@@ -767,15 +768,30 @@ class SiteConfigurationSerializer(serializers.ModelSerializer):
 
 
 class MenuItemSerializer(serializers.ModelSerializer):
-    children = serializers.SerializerMethodField()
+    # El campo 'children' ahora se poblará directamente desde la vista.
+    # Usamos una instancia del propio serializador para renderizar los hijos.
+    children = serializers.ListField(child=serializers.DictField(), read_only=True, source='children_data')
+
     class Meta:
         model = MenuItem
         fields = ['id', 'nombre', 'url', 'parent', 'orden', 'children']
-    def get_children(self, obj):
-        children = MenuItem.objects.filter(parent=obj).order_by('orden')
-        if children.exists():
-            return MenuItemSerializer(children, many=True, context=self.context).data
-        return []
+
+    def to_representation(self, instance):
+        """
+        Prepara los datos para la serialización, asegurándose de que los 'children'
+        también se serialicen correctamente.
+        """
+        # Obtenemos la representación estándar del objeto.
+        representation = super().to_representation(instance)
+
+        # Si el objeto tiene un atributo 'children' (poblado por la vista),
+        # lo serializamos recursivamente usando el mismo serializador.
+        if hasattr(instance, 'children'):
+            representation['children'] = MenuItemSerializer(instance.children, many=True).data
+        else:
+            representation['children'] = []
+
+        return representation
 
 
 class ResenaSerializer(serializers.ModelSerializer):
