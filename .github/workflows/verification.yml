@@ -1,13 +1,13 @@
-name: System Verification CI
+name: System Verification
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ "main", "develop" ]
+    branches: [ main, develop ]
 
 jobs:
-  verify-system:
+  verify:
     runs-on: ubuntu-latest
 
     services:
@@ -49,6 +49,16 @@ jobs:
           DB_PORT: 5432
         run: python backend/manage.py migrate
 
+      - name: Run Backend Tests
+        env:
+          SECRET_KEY: "ci-secret-key-for-testing"
+          DB_NAME: turismo
+          DB_USER: admin
+          DB_PASSWORD: admin
+          DB_HOST: localhost
+          DB_PORT: 5432
+        run: python backend/manage.py test
+
       - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
@@ -79,25 +89,18 @@ jobs:
           while ! nc -z localhost 8000; do
             sleep 1
           done
-          echo "Backend is up."
+          echo "✅ Backend is up."
           echo "Waiting for frontend..."
           while ! nc -z localhost 3000; do
             sleep 1
           done
-          echo "Frontend is up."
-
-      - name: Run Backend Tests
-        env:
-          SECRET_KEY: "ci-secret-key-for-testing"
-          DB_NAME: turismo
-          DB_USER: admin
-          DB_PASSWORD: admin
-          DB_HOST: localhost
-          DB_PORT: 5432
-        run: python backend/manage.py test
+          echo "✅ Frontend is up."
 
       - name: Run Playwright E2E Tests
         run: npx playwright test --config frontend/playwright.config.ts
+
+      - name: Run Frontend Unit Tests
+        run: npm test --prefix frontend
 
       - name: Stop Servers
         if: always()

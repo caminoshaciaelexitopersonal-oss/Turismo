@@ -7,8 +7,17 @@ WORKDIR /app
 # Copia el archivo de requerimientos al contenedor
 COPY ./backend/requirements.txt /app/
 
-# Instala las dependencias
+# Instala las dependencias del backend
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Instalar Node.js (para Playwright y front-end si se requiere integración)
+RUN apt-get update && apt-get install -y curl && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# Instalar Playwright (con navegadores y dependencias)
+RUN npm install -g playwright && playwright install --with-deps
 
 # Copia el resto del código del backend al contenedor
 COPY ./backend/ /app/
