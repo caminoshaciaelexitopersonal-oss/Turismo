@@ -1,80 +1,120 @@
 import { http, HttpResponse } from 'msw';
 
-// Usamos una URL relativa para que coincida con las llamadas de la API
-const API_PREFIX = '/api';
+// URL base de la API, debe coincidir con la configuración del cliente
+const API_BASE_URL = 'http://localhost:8000/api';
+
+// Simulación de "base de datos" en memoria para usuarios y configuraciones
+const users = new Map();
+const llmConfig = {
+  provider: 'local',
+  apiKey: '',
+};
 
 export const handlers = [
-  // --- Manejador para el endpoint de Login ---
-  http.post(`${API_PREFIX}/auth/login/`, async ({ request }) => {
+  // --- MANEJADOR DE LOGIN MEJORADO ---
+  // Simula la respuesta para diferentes roles basados en el username
+  http.post(`${API_BASE_URL}/auth/login/`, async ({ request }) => {
     const body = await request.json() as any;
+    const username = body.username || body.email;
 
-    // Simular un login exitoso para el administrador
-    if (body.username === 'admin' || body.email === 'admin@example.com') {
-      return HttpResponse.json({ key: 'mock-auth-token-admin' });
+    const userProfiles = {
+      'admin': { role: 'ADMINISTRADOR', token: 'mock-token-admin' },
+      'prestador': { role: 'PRESTADOR', token: 'mock-token-prestador' },
+      'artesano': { role: 'ARTESANO', token: 'mock-token-artesano' },
+      'turista': { role: 'TURISTA', token: 'mock-token-turista' },
+      'directivo': { role: 'FUNCIONARIO_DIRECTIVO', token: 'mock-token-directivo' },
+      'profesional': { role: 'FUNCIONARIO_PROFESIONAL', token: 'mock-token-profesional' },
+    };
+
+    const profile = userProfiles[username];
+
+    if (profile) {
+      return HttpResponse.json({
+        key: profile.token,
+        user: { role: profile.role, username: username }
+      });
     }
 
-    // Simular un login exitoso para cualquier otro usuario
-    if (body.username || body.email) {
-      return HttpResponse.json({ key: `mock-auth-token-for-${body.username || body.email}` });
-    }
-
-    // Simular un error de credenciales incorrectas por defecto
     return HttpResponse.json(
-      { non_field_errors: ['Unable to log in with provided credentials.'] },
+      { non_field_errors: ['Credenciales inválidas.'] },
       { status: 400 }
     );
   }),
 
-  // --- Manejador genérico para todos los endpoints de Registro ---
-  http.post(`${API_PREFIX}/auth/registration/*`, async ({ request }) => {
-    const body = await request.json() as any;
+  // --- MANEJADORES DE REGISTRO POR ROL ---
+  // Se crea un manejador para cada endpoint de registro específico
+  ...['turista', 'prestador', 'artesano', 'administrador', 'funcionario_directivo', 'funcionario_profesional'].map(role =>
+    http.post(`${API_BASE_URL}/auth/registration/${role}/`, async ({ request }) => {
+      const body = await request.json() as any;
 
-    // Simular error si las contraseñas no coinciden
-    if (body.password1 !== body.password2) {
-      return HttpResponse.json(
-        { password2: ['Las contraseñas no coinciden.'] },
-        { status: 400 }
-      );
-    }
+      if (body.password1 !== body.password2) {
+        return HttpResponse.json({ password2: ['Las contraseñas no coinciden.'] }, { status: 400 });
+      }
+      if (users.has(body.email)) {
+          return HttpResponse.json({ email: ['Este correo ya está en uso.'] }, { status: 400 });
+      }
 
-    // Simular un registro exitoso
-    return HttpResponse.json(
-      { detail: 'Registro exitoso.' },
-      { status: 201 }
-    );
-  }),
+      users.set(body.email, { ...body, role: role.toUpperCase() });
+      return HttpResponse.json({ detail: `Registro de ${role} exitoso.` }, { status: 201 });
+    })
+  ),
 
-  // --- Manejador para la configuración del sitio (Header) ---
-  http.get(`${API_PREFIX}/config/site-config/`, () => {
-    return HttpResponse.json({
-      logo_url: '/img/logo_placeholder.png', // Usar una ruta relativa
-      nombre_entidad_principal: 'Alcaldía de',
-      nombre_entidad_secundaria: 'Puerto Gaitán (Mock)',
-      nombre_secretaria: 'Secretaría de Turismo y Desarrollo Económico',
-    });
-  }),
-
-  // --- Manejador para los items del menú (Header) ---
-  http.get(`${API_PREFIX}/config/menu-items/`, () => {
+  // --- MANEJADOR DE CONFIGURACIÓN DEL MENÚ (HEADER) ---
+  http.get(`${API_BASE_URL}/config/menu-items/`, () => {
     return HttpResponse.json([
-        { id: 1, nombre: 'Inicio', url: '/', parent: null, children: [] },
-        { id: 2, nombre: 'Descubre', url: '/descubre', parent: null, children: [] },
-        { id: 3, nombre: 'Directorio', url: '/directorio', parent: null, children: [] },
+      { id: 1, title: 'Inicio', url: '/', children: [] },
+      { id: 2, title: 'Descubre', url: '/descubre', children: [] },
+      {
+        id: 3,
+        title: 'Directorio',
+        url: '/directorio',
+        children: [
+          { id: 4, title: 'Prestadores', url: '/directorio/prestadores' },
+          { id: 5, title: 'Artesanos', url: '/directorio/artesanos' },
+        ],
+      },
+      { id: 6, title: 'Institucional', url: '/institucional', children: [] },
     ]);
   }),
 
-  // --- Manejador para los datos del usuario ---
-  http.get(`${API_PREFIX}/auth/user/`, ({ cookies }) => {
-    // Esta es una simulación muy básica. En un caso real, se basaría en el token.
-    if (cookies['auth-token']) {
+  // --- MANEJADORES PARA LA CONFIGURACIÓN DE IA (LLM) ---
+  http.get(`${API_BASE_URL}/config/my-llm/`, () => {
+    return HttpResponse.json(llmConfig);
+  }),
+
+  http.post(`${API_BASE_URL}/config/my-llm/`, async ({ request }) => {
+    const newConfig = await request.json() as any;
+    llmConfig.provider = newConfig.provider || llmConfig.provider;
+    llmConfig.apiKey = newConfig.apiKey || llmConfig.apiKey;
+    return HttpResponse.json(llmConfig, { status: 200 });
+  }),
+
+  // --- MANEJADOR DE DATOS DE USUARIO AUTENTICADO ---
+  // Devuelve datos de usuario basados en el token de autorización
+  http.get(`${API_BASE_URL}/auth/user/`, ({ request }) => {
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader && authHeader.startsWith('Token mock-token-')) {
+        const token = authHeader.substring('Token '.length);
+        const roleKey = token.replace('mock-token-', '');
+
+        const roleMap = {
+            'admin': 'ADMINISTRADOR',
+            'prestador': 'PRESTADOR',
+            'artesano': 'ARTESANO',
+            'turista': 'TURISTA',
+            'directivo': 'FUNCIONARIO_DIRECTIVO',
+            'profesional': 'FUNCIONARIO_PROFESIONAL'
+        };
+
+        const userRole = roleMap[roleKey] || 'TURISTA';
+
         return HttpResponse.json({
             pk: 1,
-            username: 'testuser',
-            email: 'test@example.com',
-            role: 'TURISTA', // Rol por defecto para las pruebas
+            username: roleKey,
+            email: `${roleKey}@example.com`,
+            role: userRole,
         });
     }
-    // Si no hay token, devolver un error de no autenticado
     return new HttpResponse(null, { status: 401 });
   }),
 ];
