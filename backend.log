@@ -10,4 +10,4 @@ WARNINGS:
 ?: (staticfiles.W004) The directory '/app/backend/static' in the STATICFILES_DIRS setting does not exist.
 
 System check identified 1 issue (0 silenced).
-[12/Oct/2025 06:35:35] "GET /api/config/my-llm/ HTTP/1.1" 500 145
+[12/Oct/2025 06:59:33] "GET /api/config/my-llm/ HTTP/1.1" 500 145

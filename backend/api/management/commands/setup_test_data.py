@@ -119,17 +119,34 @@ class Command(BaseCommand):
         CategoriaPrestador.objects.get_or_create(nombre='Restaurantes', defaults={'slug': 'restaurantes'})
         RubroArtesano.objects.get_or_create(nombre='Tejidos', defaults={'slug': 'tejidos'})
 
-        admin_user, created = CustomUser.objects.get_or_create(
-            username='admin',
-            defaults={
-                'email': 'admin@example.com', 'first_name': 'Admin', 'last_name': 'Principal',
-                'role': CustomUser.Role.ADMIN, 'is_staff': True, 'is_superuser': True
-            }
-        )
-        if created:
-            admin_user.set_password('adminpassword')
-            admin_user.save()
-        return admin_user
+        self.stdout.write(self.style.HTTP_INFO('\n--- Creando Usuarios de Prueba para Roles ---'))
+
+        test_users = {
+            'admin_test': {'role': CustomUser.Role.ADMIN, 'is_staff': True, 'is_superuser': True},
+            'turista_test': {'role': CustomUser.Role.TURISTA},
+            'prestador_test': {'role': CustomUser.Role.PRESTADOR},
+            'artesano_test': {'role': CustomUser.Role.ARTESANO},
+            'directivo_test': {'role': CustomUser.Role.FUNCIONARIO_DIRECTIVO},
+            'profesional_test': {'role': CustomUser.Role.FUNCIONARIO_PROFESIONAL},
+        }
+
+        for username, data in test_users.items():
+            user, created = CustomUser.objects.get_or_create(
+                username=username,
+                defaults={
+                    'email': f'{username}@example.com',
+                    'role': data['role'],
+                    'is_staff': data.get('is_staff', False),
+                    'is_superuser': data.get('is_superuser', False)
+                }
+            )
+            if created:
+                user.set_password('password123')
+                user.save()
+                self.stdout.write(self.style.SUCCESS(f"Usuario de prueba '{username}' creado."))
+
+        # Devolvemos el usuario administrador principal para otras funciones
+        return CustomUser.objects.get(username='admin_test')
 
     def _create_rutas_turisticas(self):
         self.stdout.write(self.style.HTTP_INFO('\n--- Creando y Actualizando Rutas Turísticas ---'))
